@@ -12,7 +12,7 @@ import {
 export default async function PreferencesPage() {
   const workspaceId = await ensureWorkspace();
   const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   const [{ data: employees, error: employeesError }, { data: preferences, error: prefError }] =
     await Promise.all([

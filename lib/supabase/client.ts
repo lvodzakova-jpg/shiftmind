@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient as createSupabaseBrowserClient } from "@supabase/ssr";
 
 export function createBrowserClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -8,5 +8,5 @@ export function createBrowserClient() {
     throw new Error("Chýbajú premenné NEXT_PUBLIC_SUPABASE_URL alebo ANON_KEY");
   }
 
-  return createClient(url, key);
+  return createSupabaseBrowserClient(url, key);
 }

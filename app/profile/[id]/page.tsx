@@ -20,7 +20,7 @@ interface PageProps {
 export default async function ProfilePage({ params }: PageProps) {
   const { id } = await params;
   const workspaceId = await ensureWorkspace();
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   const [
     { data: employee },

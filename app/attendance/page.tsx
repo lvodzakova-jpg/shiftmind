@@ -15,7 +15,7 @@ export default async function AttendancePage() {
   const weekEnd = getWeekEnd(weekStart);
   const workspaceId = await ensureWorkspace();
   const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   const [{ data: staff }, { data: timeLogs }, { data: branchSettings }] =
     await Promise.all([

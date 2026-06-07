@@ -12,7 +12,7 @@ import {
 export default async function LeavesPage() {
   const workspaceId = await ensureWorkspace();
   const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const [{ data: staff }, { data: requests }, { data: balances }] =
     await Promise.all([
       supabase

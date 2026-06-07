@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     }
 
     const prevWeek = addWeeks(weekStart, -1);
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     const { data: shifts, error: fetchError } = await supabase
       .from(TABLES.shifts)

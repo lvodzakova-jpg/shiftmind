@@ -13,7 +13,7 @@ export default async function ClockInPage() {
   const today = formatDateISO(new Date());
   const workspaceId = await ensureWorkspace();
   const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   const [
     { data: staff },

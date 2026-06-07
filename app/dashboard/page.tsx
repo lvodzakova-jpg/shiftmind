@@ -25,7 +25,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const prevWeekEnd = getWeekEnd(prevWeek);
   const workspaceId = await ensureWorkspace();
   const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   const shiftsForRange = (start: string, end: string) =>
     employeeIds.length > 0

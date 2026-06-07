@@ -2,15 +2,33 @@
 
 create extension if not exists "pgcrypto";
 
--- Each browser/device gets its own workspace (isolated staff & settings).
+-- Shared team workspace (linked to Supabase Auth users).
 create table if not exists workspaces (
   id uuid primary key,
+  name text not null default 'My business',
+  invite_code text unique,
+  owner_user_id uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
 alter table workspaces enable row level security;
 drop policy if exists "workspaces_all" on workspaces;
 create policy "workspaces_all" on workspaces for all using (true) with check (true);
+
+create table if not exists workspace_members (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null default 'member' check (role in ('owner', 'manager', 'member')),
+  created_at timestamptz not null default now(),
+  unique (user_id)
+);
+
+create index if not exists idx_workspace_members_workspace on workspace_members(workspace_id);
+
+alter table workspace_members enable row level security;
+drop policy if exists "workspace_members_all" on workspace_members;
+create policy "workspace_members_all" on workspace_members for all using (true) with check (true);
 
 create table if not exists employees (
   id uuid primary key default gen_random_uuid(),
@@ -309,11 +327,31 @@ alter table time_logs add column if not exists clock_out_lng numeric(10, 7);
 -- Workspaces migration (run on existing databases)
 create table if not exists workspaces (
   id uuid primary key,
+  name text not null default 'My business',
+  invite_code text unique,
+  owner_user_id uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now()
 );
 alter table workspaces enable row level security;
 drop policy if exists "workspaces_all" on workspaces;
 create policy "workspaces_all" on workspaces for all using (true) with check (true);
+
+create table if not exists workspace_members (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null default 'member' check (role in ('owner', 'manager', 'member')),
+  created_at timestamptz not null default now(),
+  unique (user_id)
+);
+create index if not exists idx_workspace_members_workspace on workspace_members(workspace_id);
+alter table workspace_members enable row level security;
+drop policy if exists "workspace_members_all" on workspace_members;
+create policy "workspace_members_all" on workspace_members for all using (true) with check (true);
+
+alter table workspaces add column if not exists name text not null default 'My business';
+alter table workspaces add column if not exists invite_code text unique;
+alter table workspaces add column if not exists owner_user_id uuid references auth.users(id) on delete set null;
 
 alter table employees add column if not exists workspace_id uuid references workspaces(id) on delete cascade;
 alter table branch_settings add column if not exists workspace_id uuid references workspaces(id) on delete cascade;
@@ -322,5 +360,13 @@ alter table shift_templates add column if not exists workspace_id uuid reference
 create index if not exists idx_employees_workspace on employees(workspace_id);
 create index if not exists idx_branch_settings_workspace on branch_settings(workspace_id);
 create index if not exists idx_shift_templates_workspace on shift_templates(workspace_id);
+
+-- Email unique per workspace (not globally — different cafés can share patterns)
+alter table employees drop constraint if exists employees_email_key;
+drop index if exists employees_email_key;
+drop index if exists employees_workspace_email_unique;
+create unique index employees_workspace_email_unique
+  on employees (workspace_id, lower(email))
+  where workspace_id is not null;
 
 -- No demo employees: each visitor starts with an empty workspace (created by the app).

@@ -7,7 +7,7 @@ import { ensureWorkspace } from "@/lib/workspace-server";
 
 export default async function StaffPage() {
   const workspaceId = await ensureWorkspace();
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const { data: employees, error } = await supabase
     .from(TABLES.employees)
     .select("*")
@@ -18,5 +18,7 @@ export default async function StaffPage() {
     return <DatabaseError message={error.message} />;
   }
 
-  return <StaffPageView staff={employees ?? []} />;
+  return (
+    <StaffPageView staff={employees ?? []} workspaceId={workspaceId} />
+  );
 }

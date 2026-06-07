@@ -22,7 +22,7 @@ export default async function SchedulePage({ searchParams }: PageProps) {
 
   const workspaceId = await ensureWorkspace();
   const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const weekEnd = getWeekEnd(weekStart);
   const [{ data: employees }, { data: shifts }, { data: branchSettings }] =
     await Promise.all([

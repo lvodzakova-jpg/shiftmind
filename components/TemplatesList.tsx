@@ -4,7 +4,6 @@ import { useTranslation } from "@/components/LanguageProvider";
 import { ShiftBadge } from "@/components/ShiftBadge";
 import { TABLES } from "@/lib/db";
 import { createBrowserClient } from "@/lib/supabase/client";
-import { getClientWorkspaceId } from "@/lib/workspace";
 import { buildShiftRows, getDatesForRecurrence } from "@/lib/recurring";
 import type { RecurrenceType, ShiftTemplate, ShiftType, Staff } from "@/lib/types";
 import { formatDateISO, getWeekEnd } from "@/lib/week";
@@ -14,6 +13,7 @@ import { useState } from "react";
 interface TemplatesListProps {
   templates: ShiftTemplate[];
   staff: Staff[];
+  workspaceId: string;
 }
 
 const RECURRENCES: RecurrenceType[] = [
@@ -26,7 +26,11 @@ const RECURRENCES: RecurrenceType[] = [
 
 const SHIFT_TYPES: ShiftType[] = ["morning", "evening", "full"];
 
-export function TemplatesList({ templates: initial, staff }: TemplatesListProps) {
+export function TemplatesList({
+  templates: initial,
+  staff,
+  workspaceId,
+}: TemplatesListProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const [templates, setTemplates] = useState(initial);
@@ -41,11 +45,6 @@ export function TemplatesList({ templates: initial, staff }: TemplatesListProps)
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    const workspaceId = getClientWorkspaceId();
-    if (!workspaceId) {
-      setError(t("common.unknownError"));
-      return;
-    }
     setLoading(true);
     setError(null);
     const supabase = createBrowserClient();

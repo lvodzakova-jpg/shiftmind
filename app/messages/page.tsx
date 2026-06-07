@@ -12,7 +12,7 @@ import {
 export default async function MessagesPage() {
   const workspaceId = await ensureWorkspace();
   const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const [{ data: staff }, { data: messages }] = await Promise.all([
     supabase
       .from(TABLES.employees)

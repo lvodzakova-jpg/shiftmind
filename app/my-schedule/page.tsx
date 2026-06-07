@@ -24,7 +24,7 @@ export default async function MySchedulePage({ searchParams }: PageProps) {
   const workspaceId = await ensureWorkspace();
   const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const [{ data: staff }, { data: shifts }] = await Promise.all([
     supabase
       .from(TABLES.employees)

@@ -8,7 +8,7 @@ import { ensureWorkspace } from "@/lib/workspace-server";
 
 export default async function TemplatesPage() {
   const workspaceId = await ensureWorkspace();
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const [{ data: templates }, { data: staff }] = await Promise.all([
     supabase
       .from(TABLES.shiftTemplates)
@@ -26,6 +26,7 @@ export default async function TemplatesPage() {
     <TemplatesPageView
       templates={(templates ?? []) as ShiftTemplate[]}
       staff={(staff ?? []) as Staff[]}
+      workspaceId={workspaceId}
     />
   );
 }

@@ -6,7 +6,6 @@ import { formatMaxHours, isValidMaxHoursPerWeek } from "@/lib/hours";
 import { formatBirthdayDate } from "@/lib/birthdays";
 import { LOCALE_DATE_FORMAT, ROLE_OPTIONS, getRoleLabel } from "@/lib/i18n";
 import { createBrowserClient } from "@/lib/supabase/client";
-import { getClientWorkspaceId } from "@/lib/workspace";
 import type { ContractType, Staff } from "@/lib/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -21,9 +20,10 @@ const CONTRACT_TYPES: ContractType[] = [
 
 interface StaffListProps {
   initialStaff: Staff[];
+  workspaceId: string;
 }
 
-export function StaffList({ initialStaff }: StaffListProps) {
+export function StaffList({ initialStaff, workspaceId }: StaffListProps) {
   const { locale, t } = useTranslation();
   const router = useRouter();
   const [staff, setStaff] = useState(initialStaff);
@@ -45,12 +45,6 @@ export function StaffList({ initialStaff }: StaffListProps) {
     const maxHoursPerWeek = Number(maxHours);
     if (!isValidMaxHoursPerWeek(maxHoursPerWeek)) {
       setError(t("staff.maxHoursInvalid"));
-      return;
-    }
-
-    const workspaceId = getClientWorkspaceId();
-    if (!workspaceId) {
-      setError(t("common.unknownError"));
       return;
     }
 
@@ -77,7 +71,12 @@ export function StaffList({ initialStaff }: StaffListProps) {
     setLoading(false);
 
     if (insertError) {
-      setError(insertError.message);
+      const isDuplicate =
+        insertError.code === "23505" ||
+        insertError.message.toLowerCase().includes("duplicate");
+      setError(
+        isDuplicate ? t("staff.emailDuplicate") : insertError.message,
+      );
       return;
     }
 

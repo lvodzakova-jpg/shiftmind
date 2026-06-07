@@ -13,7 +13,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid subscription" }, { status: 400 });
     }
 
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { error } = await supabase.from(TABLES.pushSubscriptions).upsert(
       {
         employee_id: body.employeeId ?? null,

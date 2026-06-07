@@ -26,7 +26,7 @@ export async function sendPushToEmployee(
 ): Promise<number> {
   if (!ensureVapid()) return 0;
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const { data: rows } = await supabase
     .from(TABLES.pushSubscriptions)
     .select("subscription")

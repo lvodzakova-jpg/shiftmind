@@ -12,7 +12,7 @@ import {
 export default async function PayrollPage() {
   const workspaceId = await ensureWorkspace();
   const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const year = new Date().getFullYear();
   const start = `${year}-01-01`;
   const end = `${year}-12-31`;

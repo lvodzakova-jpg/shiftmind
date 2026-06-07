@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
     const workspaceId = await ensureWorkspace();
     const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     const [{ data: staff }, { data: documents }, { data: branch }] =
       await Promise.all([

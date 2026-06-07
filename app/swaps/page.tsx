@@ -16,7 +16,7 @@ export default async function SwapsPage() {
   const workspaceId = await ensureWorkspace();
   const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const [{ data: staff }, { data: shifts }, { data: requests }] =
     await Promise.all([
       supabase

@@ -5,7 +5,13 @@ import { PageHeader } from "@/components/PageHeader";
 import { StaffList } from "@/components/StaffList";
 import type { Staff } from "@/lib/types";
 
-export function StaffPageView({ staff }: { staff: Staff[] }) {
+export function StaffPageView({
+  staff,
+  workspaceId,
+}: {
+  staff: Staff[];
+  workspaceId: string;
+}) {
   const { t } = useTranslation();
 
   return (
@@ -14,7 +20,7 @@ export function StaffPageView({ staff }: { staff: Staff[] }) {
         title={t("staff.title")}
         description={t("staff.description")}
       />
-      <StaffList initialStaff={staff} />
+      <StaffList initialStaff={staff} workspaceId={workspaceId} />
     </div>
   );
 }

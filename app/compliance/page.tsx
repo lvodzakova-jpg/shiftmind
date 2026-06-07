@@ -24,7 +24,7 @@ export default async function CompliancePage({ searchParams }: PageProps) {
   const workspaceId = await ensureWorkspace();
   const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const [{ data: staff }, { data: shifts }, { data: documents }, { data: branch }] =
     await Promise.all([
       supabase

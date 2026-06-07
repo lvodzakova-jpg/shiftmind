@@ -8,13 +8,21 @@ import { TABLES } from "@/lib/db";
 import { getCurrentEmployeeId } from "@/lib/current-user";
 import { createBrowserClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { t } = useTranslation();
   const [unread, setUnread] = useState(0);
+
+  async function handleLogout() {
+    const supabase = createBrowserClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   const links = [
     { href: "/dashboard", label: t("nav.overview") },
@@ -71,6 +79,13 @@ export function Navbar() {
             </Link>
             <ThemeControls compact />
             <LanguageSwitcher />
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-subtle hover:text-foreground sm:text-sm"
+            >
+              {t("auth.logout")}
+            </button>
           </div>
         </div>
         <nav className="-mx-1 flex gap-0.5 overflow-x-auto pb-2 scrollbar-none">

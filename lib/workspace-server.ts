@@ -1,69 +1,56 @@
-import { DEFAULT_BRANCH_SETTINGS } from "@/lib/branch-settings";
 import { TABLES } from "@/lib/db";
 import { createServerClient } from "@/lib/supabase/server";
-import { WORKSPACE_COOKIE, WORKSPACE_HEADER } from "@/lib/workspace";
-import { cookies, headers } from "next/headers";
 
-export async function resolveWorkspaceId(): Promise<string> {
-  const headersList = await headers();
-  const fromHeader = headersList.get(WORKSPACE_HEADER);
-  if (fromHeader) return fromHeader;
-
-  const cookieStore = await cookies();
-  const fromCookie = cookieStore.get(WORKSPACE_COOKIE)?.value;
-  if (fromCookie) return fromCookie;
-
-  throw new Error("Missing workspace");
+export async function getAuthenticatedUser() {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return { supabase, user };
 }
 
-/** Ensures workspace + default branch settings exist in the database. */
-export async function ensureWorkspace(): Promise<string> {
-  const workspaceId = await resolveWorkspaceId();
-  const supabase = createServerClient();
-
-  const { data: existing } = await supabase
-    .from(TABLES.workspaces)
-    .select("id")
-    .eq("id", workspaceId)
+export async function getWorkspaceMembership(userId: string) {
+  const supabase = await createServerClient();
+  const { data, error } = await supabase
+    .from(TABLES.workspaceMembers)
+    .select("workspace_id, role")
+    .eq("user_id", userId)
     .maybeSingle();
 
-  if (!existing) {
-    await supabase.from(TABLES.workspaces).insert({ id: workspaceId });
-    await supabase.from(TABLES.branchSettings).insert({
-      workspace_id: workspaceId,
-      branch_name: DEFAULT_BRANCH_SETTINGS.branch_name,
-      min_staff_per_shift: DEFAULT_BRANCH_SETTINGS.min_staff_per_shift,
-      meal_allowance: DEFAULT_BRANCH_SETTINGS.meal_allowance,
-      weekly_budget: DEFAULT_BRANCH_SETTINGS.weekly_budget,
-      gps_radius_m: DEFAULT_BRANCH_SETTINGS.gps_radius_m,
-      legal_country: DEFAULT_BRANCH_SETTINGS.legal_country,
-      monday_open: DEFAULT_BRANCH_SETTINGS.monday_open,
-      monday_close: DEFAULT_BRANCH_SETTINGS.monday_close,
-      tuesday_open: DEFAULT_BRANCH_SETTINGS.tuesday_open,
-      tuesday_close: DEFAULT_BRANCH_SETTINGS.tuesday_close,
-      wednesday_open: DEFAULT_BRANCH_SETTINGS.wednesday_open,
-      wednesday_close: DEFAULT_BRANCH_SETTINGS.wednesday_close,
-      thursday_open: DEFAULT_BRANCH_SETTINGS.thursday_open,
-      thursday_close: DEFAULT_BRANCH_SETTINGS.thursday_close,
-      friday_open: DEFAULT_BRANCH_SETTINGS.friday_open,
-      friday_close: DEFAULT_BRANCH_SETTINGS.friday_close,
-      saturday_open: DEFAULT_BRANCH_SETTINGS.saturday_open,
-      saturday_close: DEFAULT_BRANCH_SETTINGS.saturday_close,
-      sunday_open: DEFAULT_BRANCH_SETTINGS.sunday_open,
-      sunday_close: DEFAULT_BRANCH_SETTINGS.sunday_close,
-    });
-  }
+  if (error) throw new Error(error.message);
+  return data;
+}
 
-  return workspaceId;
+/** Returns workspace id for the logged-in user. */
+export async function ensureWorkspace(): Promise<string> {
+  const { user } = await getAuthenticatedUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const member = await getWorkspaceMembership(user.id);
+  if (!member) throw new Error("No workspace — join or create a team first");
+
+  return member.workspace_id;
 }
 
 export async function getWorkspaceEmployeeIds(
   workspaceId: string,
 ): Promise<string[]> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const { data } = await supabase
     .from(TABLES.employees)
     .select("id")
     .eq("workspace_id", workspaceId);
   return data?.map((row) => row.id) ?? [];
+}
+
+export async function getWorkspaceDetails(workspaceId: string) {
+  const supabase = await createServerClient();
+  const { data, error } = await supabase
+    .from(TABLES.workspaces)
+    .select("id, name, invite_code")
+    .eq("id", workspaceId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data;
 }
