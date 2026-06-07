@@ -4,6 +4,7 @@ import { useTranslation } from "@/components/LanguageProvider";
 import { ShiftBadge } from "@/components/ShiftBadge";
 import { TABLES } from "@/lib/db";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { getClientWorkspaceId } from "@/lib/workspace";
 import { buildShiftRows, getDatesForRecurrence } from "@/lib/recurring";
 import type { RecurrenceType, ShiftTemplate, ShiftType, Staff } from "@/lib/types";
 import { formatDateISO, getWeekEnd } from "@/lib/week";
@@ -40,12 +41,18 @@ export function TemplatesList({ templates: initial, staff }: TemplatesListProps)
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
+    const workspaceId = getClientWorkspaceId();
+    if (!workspaceId) {
+      setError(t("common.unknownError"));
+      return;
+    }
     setLoading(true);
     setError(null);
     const supabase = createBrowserClient();
     const { data, error: insertError } = await supabase
       .from(TABLES.shiftTemplates)
       .insert({
+        workspace_id: workspaceId,
         name: name.trim(),
         shift_type: shiftType,
         employee_id: employeeId || null,

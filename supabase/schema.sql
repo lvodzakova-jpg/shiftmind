@@ -2,6 +2,16 @@
 
 create extension if not exists "pgcrypto";
 
+-- Each browser/device gets its own workspace (isolated staff & settings).
+create table if not exists workspaces (
+  id uuid primary key,
+  created_at timestamptz not null default now()
+);
+
+alter table workspaces enable row level security;
+drop policy if exists "workspaces_all" on workspaces;
+create policy "workspaces_all" on workspaces for all using (true) with check (true);
+
 create table if not exists employees (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -17,6 +27,7 @@ create table if not exists employees (
   ),
   phone text not null default '',
   birth_date date,
+  workspace_id uuid references workspaces(id) on delete cascade,
   created_at timestamptz not null default now()
 );
 
@@ -76,6 +87,7 @@ create policy "shifts_all" on shifts for all using (true) with check (true);
 
 create table if not exists branch_settings (
   id uuid primary key default gen_random_uuid(),
+  workspace_id uuid references workspaces(id) on delete cascade,
   branch_name text not null default 'Kaviareň Centrum',
   min_staff_per_shift int not null default 2 check (min_staff_per_shift >= 1),
   meal_allowance numeric(8, 2) not null default 0,
@@ -131,6 +143,7 @@ create policy "time_logs_all" on time_logs for all using (true) with check (true
 
 create table if not exists shift_templates (
   id uuid primary key default gen_random_uuid(),
+  workspace_id uuid references workspaces(id) on delete cascade,
   name text not null,
   shift_type text not null check (
     shift_type in ('morning', 'evening', 'full', 'off', 'sick')
@@ -293,20 +306,21 @@ alter table time_logs add column if not exists clock_in_lng numeric(10, 7);
 alter table time_logs add column if not exists clock_out_lat numeric(10, 7);
 alter table time_logs add column if not exists clock_out_lng numeric(10, 7);
 
-insert into branch_settings (branch_name, min_staff_per_shift)
-select 'Kaviareň Centrum', 2
-where not exists (select 1 from branch_settings limit 1);
+-- Workspaces migration (run on existing databases)
+create table if not exists workspaces (
+  id uuid primary key,
+  created_at timestamptz not null default now()
+);
+alter table workspaces enable row level security;
+drop policy if exists "workspaces_all" on workspaces;
+create policy "workspaces_all" on workspaces for all using (true) with check (true);
 
-insert into employees (name, email, role, max_hours_per_week, birth_date)
-select * from (values
-  ('Mária Nováková', 'maria@kaviaren.sk', 'manager', 40::numeric, '1988-06-06'::date),
-  ('Peter Kováč', 'peter@kaviaren.sk', 'barista', 35.5::numeric, '1995-06-10'::date),
-  ('Eva Horváthová', 'eva@kaviaren.sk', 'senior_barista', 40::numeric, '1992-03-15'::date),
-  ('Ján Šimko', 'jan@kaviaren.sk', 'waiter', 20::numeric, '2000-12-01'::date)
-) as v(name, email, role, max_hours_per_week, birth_date)
-where not exists (select 1 from employees limit 1);
+alter table employees add column if not exists workspace_id uuid references workspaces(id) on delete cascade;
+alter table branch_settings add column if not exists workspace_id uuid references workspaces(id) on delete cascade;
+alter table shift_templates add column if not exists workspace_id uuid references workspaces(id) on delete cascade;
 
-update employees set birth_date = '1988-06-06' where email = 'maria@kaviaren.sk' and birth_date is null;
-update employees set birth_date = '1995-06-10' where email = 'peter@kaviaren.sk' and birth_date is null;
-update employees set birth_date = '1992-03-15' where email = 'eva@kaviaren.sk' and birth_date is null;
-update employees set birth_date = '2000-12-01' where email = 'jan@kaviaren.sk' and birth_date is null;
+create index if not exists idx_employees_workspace on employees(workspace_id);
+create index if not exists idx_branch_settings_workspace on branch_settings(workspace_id);
+create index if not exists idx_shift_templates_workspace on shift_templates(workspace_id);
+
+-- No demo employees: each visitor starts with an empty workspace (created by the app).

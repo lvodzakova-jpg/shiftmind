@@ -4,9 +4,13 @@ import {
   findManagerSender,
 } from "@/lib/document-notifications";
 import { translate, isLocale, type Locale } from "@/lib/i18n";
-import { TABLES } from "@/lib/db";
+import { COLS, TABLES } from "@/lib/db";
 import { sendPushToEmployee } from "@/lib/push-server";
 import { createServerClient } from "@/lib/supabase/server";
+import {
+  ensureWorkspace,
+  getWorkspaceEmployeeIds,
+} from "@/lib/workspace-server";
 import type { BranchSettings, Employee, HrDocument, LegalCountry } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -22,13 +26,28 @@ export async function POST(request: Request) {
     const t = (key: string, params?: Record<string, string | number>) =>
       translate(locale, key, params);
 
+    const workspaceId = await ensureWorkspace();
+    const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
     const supabase = createServerClient();
 
     const [{ data: staff }, { data: documents }, { data: branch }] =
       await Promise.all([
-        supabase.from(TABLES.employees).select("*").order("name"),
-        supabase.from(TABLES.hrDocuments).select("*"),
-        supabase.from(TABLES.branchSettings).select("legal_country").limit(1).maybeSingle(),
+        supabase
+          .from(TABLES.employees)
+          .select("*")
+          .eq(COLS.workspaceId, workspaceId)
+          .order("name"),
+        employeeIds.length > 0
+          ? supabase
+              .from(TABLES.hrDocuments)
+              .select("*")
+              .in(COLS.employeeId, employeeIds)
+          : Promise.resolve({ data: [] }),
+        supabase
+          .from(TABLES.branchSettings)
+          .select("legal_country")
+          .eq(COLS.workspaceId, workspaceId)
+          .maybeSingle(),
       ]);
 
     const employees = (staff ?? []) as Employee[];

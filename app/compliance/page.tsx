@@ -1,9 +1,13 @@
 export const dynamic = "force-dynamic";
 
 import { CompliancePageView } from "@/components/views/CompliancePageView";
-import { TABLES } from "@/lib/db";
+import { COLS, TABLES } from "@/lib/db";
 import { createServerClient } from "@/lib/supabase/server";
 import type { BranchSettings, HrDocument, Shift, Staff } from "@/lib/types";
+import {
+  ensureWorkspace,
+  getWorkspaceEmployeeIds,
+} from "@/lib/workspace-server";
 import { formatDateISO, getWeekEnd, getWeekStart } from "@/lib/week";
 
 interface PageProps {
@@ -17,18 +21,36 @@ export default async function CompliancePage({ searchParams }: PageProps) {
       ? params.week
       : formatDateISO(getWeekStart());
   const weekEnd = getWeekEnd(weekStart);
+  const workspaceId = await ensureWorkspace();
+  const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
 
   const supabase = createServerClient();
   const [{ data: staff }, { data: shifts }, { data: documents }, { data: branch }] =
     await Promise.all([
-      supabase.from(TABLES.employees).select("*").order("name"),
       supabase
-        .from(TABLES.shifts)
+        .from(TABLES.employees)
         .select("*")
-        .gte("date", weekStart)
-        .lte("date", weekEnd),
-      supabase.from(TABLES.hrDocuments).select("*"),
-      supabase.from(TABLES.branchSettings).select("*").limit(1).maybeSingle(),
+        .eq(COLS.workspaceId, workspaceId)
+        .order("name"),
+      employeeIds.length > 0
+        ? supabase
+            .from(TABLES.shifts)
+            .select("*")
+            .in(COLS.employeeId, employeeIds)
+            .gte("date", weekStart)
+            .lte("date", weekEnd)
+        : Promise.resolve({ data: [] as Shift[] }),
+      employeeIds.length > 0
+        ? supabase
+            .from(TABLES.hrDocuments)
+            .select("*")
+            .in(COLS.employeeId, employeeIds)
+        : Promise.resolve({ data: [] as HrDocument[] }),
+      supabase
+        .from(TABLES.branchSettings)
+        .select("*")
+        .eq(COLS.workspaceId, workspaceId)
+        .maybeSingle(),
     ]);
 
   return (

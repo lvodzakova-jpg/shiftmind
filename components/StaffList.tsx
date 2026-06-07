@@ -6,6 +6,7 @@ import { formatMaxHours, isValidMaxHoursPerWeek } from "@/lib/hours";
 import { formatBirthdayDate } from "@/lib/birthdays";
 import { LOCALE_DATE_FORMAT, ROLE_OPTIONS, getRoleLabel } from "@/lib/i18n";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { getClientWorkspaceId } from "@/lib/workspace";
 import type { ContractType, Staff } from "@/lib/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -47,6 +48,12 @@ export function StaffList({ initialStaff }: StaffListProps) {
       return;
     }
 
+    const workspaceId = getClientWorkspaceId();
+    if (!workspaceId) {
+      setError(t("common.unknownError"));
+      return;
+    }
+
     setLoading(true);
     setError(null);
     const supabase = createBrowserClient();
@@ -54,6 +61,7 @@ export function StaffList({ initialStaff }: StaffListProps) {
     const { data, error: insertError } = await supabase
       .from(TABLES.employees)
       .insert({
+        workspace_id: workspaceId,
         name: name.trim(),
         email: email.trim(),
         role,

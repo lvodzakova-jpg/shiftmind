@@ -1,6 +1,10 @@
 import { COLS, TABLES } from "@/lib/db";
 import { getShiftDbTimes } from "@/lib/shifts";
 import { createServerClient } from "@/lib/supabase/server";
+import {
+  ensureWorkspace,
+  getWorkspaceEmployeeIds,
+} from "@/lib/workspace-server";
 import { addWeeks, getWeekEnd } from "@/lib/week";
 import { NextResponse } from "next/server";
 
@@ -11,12 +15,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid weekStart" }, { status: 400 });
     }
 
+    const workspaceId = await ensureWorkspace();
+    const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
+    if (employeeIds.length === 0) {
+      return NextResponse.json(
+        { error: "No employees in workspace" },
+        { status: 404 },
+      );
+    }
+
     const prevWeek = addWeeks(weekStart, -1);
     const supabase = createServerClient();
 
     const { data: shifts, error: fetchError } = await supabase
       .from(TABLES.shifts)
       .select("*")
+      .in(COLS.employeeId, employeeIds)
       .gte(COLS.shiftDate, prevWeek)
       .lte(COLS.shiftDate, getWeekEnd(prevWeek));
 
@@ -27,7 +41,7 @@ export async function POST(request: Request) {
     if (!shifts?.length) {
       return NextResponse.json(
         { error: "No shifts in previous week" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -50,6 +64,7 @@ export async function POST(request: Request) {
     await supabase
       .from(TABLES.shifts)
       .delete()
+      .in(COLS.employeeId, employeeIds)
       .gte(COLS.shiftDate, weekStart)
       .lte(COLS.shiftDate, getWeekEnd(weekStart));
 
@@ -65,7 +80,7 @@ export async function POST(request: Request) {
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Unknown error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

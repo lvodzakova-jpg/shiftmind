@@ -1,5 +1,6 @@
 /** Supabase table and column names (matches remote schema). */
 export const TABLES = {
+  workspaces: "workspaces",
   employees: "employees",
   preferences: "preferences",
   shifts: "shifts",
@@ -16,6 +17,7 @@ export const TABLES = {
 } as const;
 
 export const COLS = {
+  workspaceId: "workspace_id",
   employeeId: "employee_id",
   shiftDate: "date",
   startTime: "start_time",

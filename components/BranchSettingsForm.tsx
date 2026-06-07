@@ -9,6 +9,7 @@ import {
 import { TABLES } from "@/lib/db";
 import { getDayNames } from "@/lib/i18n";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { getClientWorkspaceId } from "@/lib/workspace";
 import { registerPushNotifications } from "@/lib/push-client";
 import type { BranchSettings, LegalCountry } from "@/lib/types";
 import { useRouter } from "next/navigation";
@@ -123,9 +124,15 @@ export function BranchSettingsForm({
         return;
       }
     } else {
+      const workspaceId = getClientWorkspaceId();
+      if (!workspaceId) {
+        setSaving(false);
+        setError(t("common.unknownError"));
+        return;
+      }
       const { error: insertError } = await supabase
         .from(TABLES.branchSettings)
-        .insert(row);
+        .insert({ ...row, workspace_id: workspaceId });
 
       setSaving(false);
       if (insertError) {

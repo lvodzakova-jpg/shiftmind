@@ -3,6 +3,10 @@ import { ScheduleView } from "@/components/views/ScheduleView";
 import { COLS, TABLES } from "@/lib/db";
 import { createServerClient } from "@/lib/supabase/server";
 import type { BranchSettings, Shift, Staff } from "@/lib/types";
+import {
+  ensureWorkspace,
+  getWorkspaceEmployeeIds,
+} from "@/lib/workspace-server";
 import { formatDateISO, getWeekEnd, getWeekStart } from "@/lib/week";
 
 interface PageProps {
@@ -16,16 +20,30 @@ export default async function SchedulePage({ searchParams }: PageProps) {
       ? params.week
       : formatDateISO(getWeekStart());
 
+  const workspaceId = await ensureWorkspace();
+  const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
   const supabase = createServerClient();
+  const weekEnd = getWeekEnd(weekStart);
   const [{ data: employees }, { data: shifts }, { data: branchSettings }] =
     await Promise.all([
-      supabase.from(TABLES.employees).select("*").order("name"),
       supabase
-        .from(TABLES.shifts)
+        .from(TABLES.employees)
         .select("*")
-        .gte(COLS.shiftDate, weekStart)
-        .lte(COLS.shiftDate, getWeekEnd(weekStart)),
-      supabase.from(TABLES.branchSettings).select("*").limit(1).maybeSingle(),
+        .eq(COLS.workspaceId, workspaceId)
+        .order("name"),
+      employeeIds.length > 0
+        ? supabase
+            .from(TABLES.shifts)
+            .select("*")
+            .in(COLS.employeeId, employeeIds)
+            .gte(COLS.shiftDate, weekStart)
+            .lte(COLS.shiftDate, weekEnd)
+        : Promise.resolve({ data: [] as Shift[] }),
+      supabase
+        .from(TABLES.branchSettings)
+        .select("*")
+        .eq(COLS.workspaceId, workspaceId)
+        .maybeSingle(),
     ]);
 
   return (

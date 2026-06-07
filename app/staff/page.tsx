@@ -1,14 +1,17 @@
 export const dynamic = 'force-dynamic';
 import { DatabaseError } from "@/components/DatabaseError";
 import { StaffPageView } from "@/components/views/StaffPageView";
-import { TABLES } from "@/lib/db";
+import { COLS, TABLES } from "@/lib/db";
 import { createServerClient } from "@/lib/supabase/server";
+import { ensureWorkspace } from "@/lib/workspace-server";
 
 export default async function StaffPage() {
+  const workspaceId = await ensureWorkspace();
   const supabase = createServerClient();
   const { data: employees, error } = await supabase
     .from(TABLES.employees)
     .select("*")
+    .eq(COLS.workspaceId, workspaceId)
     .order("name");
 
   if (error) {

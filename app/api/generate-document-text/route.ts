@@ -2,8 +2,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { isLocale, type Locale } from "@/lib/i18n";
 import type { HrDocumentKind } from "@/lib/hr-documents";
-import { TABLES } from "@/lib/db";
+import { COLS, TABLES } from "@/lib/db";
 import { createServerClient } from "@/lib/supabase/server";
+import { ensureWorkspace } from "@/lib/workspace-server";
 import type { BranchSettings, Employee, LegalCountry } from "@/lib/types";
 
 const VALID_KINDS: HrDocumentKind[] = [
@@ -45,11 +46,21 @@ export async function POST(request: Request) {
       );
     }
 
+    const workspaceId = await ensureWorkspace();
     const supabase = createServerClient();
     const [{ data: employee, error: empError }, { data: branch }] =
       await Promise.all([
-        supabase.from(TABLES.employees).select("*").eq("id", employeeId).single(),
-        supabase.from(TABLES.branchSettings).select("*").limit(1).maybeSingle(),
+        supabase
+          .from(TABLES.employees)
+          .select("*")
+          .eq("id", employeeId)
+          .eq(COLS.workspaceId, workspaceId)
+          .single(),
+        supabase
+          .from(TABLES.branchSettings)
+          .select("*")
+          .eq(COLS.workspaceId, workspaceId)
+          .maybeSingle(),
       ]);
 
     if (empError || !employee) {

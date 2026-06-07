@@ -5,8 +5,12 @@ import {
   getTeamDocumentSummary,
   type HrDocumentKind,
 } from "@/lib/hr-documents";
-import { TABLES } from "@/lib/db";
+import { COLS, TABLES } from "@/lib/db";
 import { createServerClient } from "@/lib/supabase/server";
+import {
+  ensureWorkspace,
+  getWorkspaceEmployeeIds,
+} from "@/lib/workspace-server";
 import type { Employee, HrDocument, LegalCountry } from "@/lib/types";
 
 interface AiNote {
@@ -29,6 +33,8 @@ export async function POST(request: Request) {
       typeof body.employee_id === "string" ? body.employee_id : null;
     const locale = typeof body.locale === "string" ? body.locale : "en";
 
+    const workspaceId = await ensureWorkspace();
+    const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
     const supabase = createServerClient();
 
     const [
@@ -36,9 +42,22 @@ export async function POST(request: Request) {
       { data: documents, error: docError },
       { data: branchRow, error: branchError },
     ] = await Promise.all([
-      supabase.from(TABLES.employees).select("*").order("name"),
-      supabase.from(TABLES.hrDocuments).select("*"),
-      supabase.from(TABLES.branchSettings).select("legal_country").limit(1).maybeSingle(),
+      supabase
+        .from(TABLES.employees)
+        .select("*")
+        .eq(COLS.workspaceId, workspaceId)
+        .order("name"),
+      employeeIds.length > 0
+        ? supabase
+            .from(TABLES.hrDocuments)
+            .select("*")
+            .in(COLS.employeeId, employeeIds)
+        : Promise.resolve({ data: [], error: null }),
+      supabase
+        .from(TABLES.branchSettings)
+        .select("legal_country")
+        .eq(COLS.workspaceId, workspaceId)
+        .maybeSingle(),
     ]);
 
     if (empError || docError || branchError) {

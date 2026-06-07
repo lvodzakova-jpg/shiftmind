@@ -10,6 +10,7 @@ import type {
   Preference,
   Shift,
 } from "@/lib/types";
+import { ensureWorkspace } from "@/lib/workspace-server";
 import { notFound } from "next/navigation";
 
 interface PageProps {
@@ -18,6 +19,7 @@ interface PageProps {
 
 export default async function ProfilePage({ params }: PageProps) {
   const { id } = await params;
+  const workspaceId = await ensureWorkspace();
   const supabase = createServerClient();
 
   const [
@@ -28,8 +30,17 @@ export default async function ProfilePage({ params }: PageProps) {
     { data: shifts },
     { data: preference },
   ] = await Promise.all([
-    supabase.from(TABLES.employees).select("*").eq("id", id).maybeSingle(),
-    supabase.from(TABLES.employees).select("*").order("name"),
+    supabase
+      .from(TABLES.employees)
+      .select("*")
+      .eq("id", id)
+      .eq(COLS.workspaceId, workspaceId)
+      .maybeSingle(),
+    supabase
+      .from(TABLES.employees)
+      .select("*")
+      .eq(COLS.workspaceId, workspaceId)
+      .order("name"),
     supabase.from(TABLES.hrDocuments).select("*").eq(COLS.employeeId, id),
     supabase.from(TABLES.leaveBalances).select("*").eq(COLS.employeeId, id),
     supabase

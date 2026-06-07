@@ -2,7 +2,11 @@ export const dynamic = 'force-dynamic';
 import { DashboardView } from "@/components/views/DashboardView";
 import { COLS, TABLES } from "@/lib/db";
 import { createServerClient } from "@/lib/supabase/server";
-import type { BranchSettings } from "@/lib/types";
+import type { BranchSettings, Preference, Shift, TimeLog } from "@/lib/types";
+import {
+  ensureWorkspace,
+  getWorkspaceEmployeeIds,
+} from "@/lib/workspace-server";
 import { addWeeks, formatDateISO, getWeekEnd, getWeekStart } from "@/lib/week";
 
 interface PageProps {
@@ -19,7 +23,29 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const weekEnd = getWeekEnd(weekStart);
   const prevWeek = addWeeks(weekStart, -1);
   const prevWeekEnd = getWeekEnd(prevWeek);
+  const workspaceId = await ensureWorkspace();
+  const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
   const supabase = createServerClient();
+
+  const shiftsForRange = (start: string, end: string) =>
+    employeeIds.length > 0
+      ? supabase
+          .from(TABLES.shifts)
+          .select("*")
+          .in(COLS.employeeId, employeeIds)
+          .gte(COLS.shiftDate, start)
+          .lte(COLS.shiftDate, end)
+      : Promise.resolve({ data: [] as Shift[] });
+
+  const timeLogsForRange = (start: string, end: string) =>
+    employeeIds.length > 0
+      ? supabase
+          .from(TABLES.timeLogs)
+          .select("*")
+          .in(COLS.employeeId, employeeIds)
+          .gte(COLS.clockIn, `${start}T00:00:00`)
+          .lte(COLS.clockIn, `${end}T23:59:59`)
+      : Promise.resolve({ data: [] as TimeLog[] });
 
   const [
     { data: employees },
@@ -30,29 +56,26 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     { data: prevTimeLogs },
     { data: branchSettings },
   ] = await Promise.all([
-    supabase.from(TABLES.employees).select("*").order("name"),
     supabase
-      .from(TABLES.shifts)
+      .from(TABLES.employees)
       .select("*")
-      .gte(COLS.shiftDate, weekStart)
-      .lte(COLS.shiftDate, weekEnd),
-    supabase.from(TABLES.preferences).select("*"),
+      .eq(COLS.workspaceId, workspaceId)
+      .order("name"),
+    shiftsForRange(weekStart, weekEnd),
+    employeeIds.length > 0
+      ? supabase
+          .from(TABLES.preferences)
+          .select("*")
+          .in(COLS.employeeId, employeeIds)
+      : Promise.resolve({ data: [] as Preference[] }),
+    timeLogsForRange(weekStart, weekEnd),
+    shiftsForRange(prevWeek, prevWeekEnd),
+    timeLogsForRange(prevWeek, prevWeekEnd),
     supabase
-      .from(TABLES.timeLogs)
+      .from(TABLES.branchSettings)
       .select("*")
-      .gte(COLS.clockIn, `${weekStart}T00:00:00`)
-      .lte(COLS.clockIn, `${weekEnd}T23:59:59`),
-    supabase
-      .from(TABLES.shifts)
-      .select("*")
-      .gte(COLS.shiftDate, prevWeek)
-      .lte(COLS.shiftDate, prevWeekEnd),
-    supabase
-      .from(TABLES.timeLogs)
-      .select("*")
-      .gte(COLS.clockIn, `${prevWeek}T00:00:00`)
-      .lte(COLS.clockIn, `${prevWeekEnd}T23:59:59`),
-    supabase.from(TABLES.branchSettings).select("*").limit(1).maybeSingle(),
+      .eq(COLS.workspaceId, workspaceId)
+      .maybeSingle(),
   ]);
 
   return (

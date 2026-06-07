@@ -6,6 +6,10 @@ import {
   getPreferenceDayValue,
 } from "@/lib/preferences";
 import { createServerClient } from "@/lib/supabase/server";
+import {
+  ensureWorkspace,
+  getWorkspaceEmployeeIds,
+} from "@/lib/workspace-server";
 import { getShiftDbTimes, isStorableShift } from "@/lib/shifts";
 import type { GeneratedSchedule, Preference, ShiftType } from "@/lib/types";
 import { BRANCH_DAYS, branchDayCloseKey, branchDayOpenKey } from "@/lib/branch-settings";
@@ -49,6 +53,8 @@ export async function POST(request: Request) {
         ? body.week_start
         : formatDateISO(getWeekStart());
 
+    const workspaceId = await ensureWorkspace();
+    const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
     const supabase = createServerClient();
 
     const locale =
@@ -58,7 +64,8 @@ export async function POST(request: Request) {
 
     const { data: employees, error: employeesError } = await supabase
       .from(TABLES.employees)
-      .select("id, name, role, max_hours_per_week, contract_type");
+      .select("id, name, role, max_hours_per_week, contract_type")
+      .eq(COLS.workspaceId, workspaceId);
 
     if (employeesError) {
       return NextResponse.json(
@@ -74,11 +81,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: preferences, error: prefError } = await supabase
-      .from(TABLES.preferences)
-      .select(
-        "employee_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday"
-      );
+    const { data: preferences, error: prefError } =
+      employeeIds.length > 0
+        ? await supabase
+            .from(TABLES.preferences)
+            .select(
+              "employee_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday",
+            )
+            .in(COLS.employeeId, employeeIds)
+        : { data: [], error: null };
 
     if (prefError) {
       return NextResponse.json(
@@ -100,13 +111,20 @@ export async function POST(request: Request) {
     ];
 
     const [{ data: branchRow }, { data: leaveRows }] = await Promise.all([
-      supabase.from(TABLES.branchSettings).select("*").limit(1).maybeSingle(),
       supabase
-        .from(TABLES.leaveRequests)
-        .select("employee_id, type, start_date, end_date, status")
-        .eq("status", "approved")
-        .lte("start_date", getWeekEnd(weekStart))
-        .gte("end_date", weekStart),
+        .from(TABLES.branchSettings)
+        .select("*")
+        .eq(COLS.workspaceId, workspaceId)
+        .maybeSingle(),
+      employeeIds.length > 0
+        ? supabase
+            .from(TABLES.leaveRequests)
+            .select("employee_id, type, start_date, end_date, status")
+            .in(COLS.employeeId, employeeIds)
+            .eq("status", "approved")
+            .lte("start_date", getWeekEnd(weekStart))
+            .gte("end_date", weekStart)
+        : Promise.resolve({ data: [] }),
     ]);
 
     const branch = branchRow as BranchSettings | null;
@@ -256,11 +274,15 @@ Pre každého zamestnanca a každý deň týždňa musí existovať presne jeden
       );
     }
 
-    const { error: deleteError } = await supabase
-      .from(TABLES.shifts)
-      .delete()
-      .gte(COLS.shiftDate, weekStart)
-      .lte(COLS.shiftDate, weekEnd);
+    const { error: deleteError } =
+      employeeIds.length > 0
+        ? await supabase
+            .from(TABLES.shifts)
+            .delete()
+            .in(COLS.employeeId, employeeIds)
+            .gte(COLS.shiftDate, weekStart)
+            .lte(COLS.shiftDate, weekEnd)
+        : { error: null };
 
     if (deleteError) {
       return NextResponse.json(
