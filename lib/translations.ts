@@ -1,7 +1,7 @@
 export const LOCALES = ["sk", "en", "es"] as const;
 export type Locale = (typeof LOCALES)[number];
 
-export const DEFAULT_LOCALE: Locale = "sk";
+export const DEFAULT_LOCALE: Locale = "en";
 
 export const LOCALE_LABELS: Record<Locale, string> = {
   sk: "SK",
@@ -103,6 +103,13 @@ export const translations = {
       overtimeEmpty: "Žiadny zamestnanec neprekročil týždenný limit.",
       overtimeRow: "{name}: {scheduled}h / max {max}h (+{excess}h)",
       loggedOvertime: "Evidované nadčasy tento týždeň: {hours}h",
+      birthdaysTitle: "Narodeniny kolegov",
+      birthdaysToday: "Dnes",
+      birthdaysUpcoming: "Čoskoro",
+      birthdaysEmpty: "Žiadne narodeniny v najbližších 30 dňoch.",
+      birthdayToday: "{name} má dnes narodeniny!",
+      birthdayInDays: "{name} — {date} (o {days} dní)",
+      birthdayTomorrow: "{name} — zajtra ({date})",
     },
     alerts: {
       missingPrefs:
@@ -181,6 +188,7 @@ export const translations = {
       listTitle: "Zamestnanci ({count})",
       emptyList: "Zoznam je prázdny. Pridajte prvého zamestnanca.",
       deleteConfirm: 'Odstrániť zamestnanca „{name}"?',
+      birthDateLabel: "Dátum narodenia",
     },
     preferences: {
       title: "Preferencie dostupnosti",
@@ -296,6 +304,13 @@ export const translations = {
       overtimeEmpty: "No employee exceeded their weekly limit.",
       overtimeRow: "{name}: {scheduled}h / max {max}h (+{excess}h)",
       loggedOvertime: "Logged overtime this week: {hours}h",
+      birthdaysTitle: "Team birthdays",
+      birthdaysToday: "Today",
+      birthdaysUpcoming: "Coming up",
+      birthdaysEmpty: "No birthdays in the next 30 days.",
+      birthdayToday: "{name} has a birthday today!",
+      birthdayInDays: "{name} — {date} (in {days} days)",
+      birthdayTomorrow: "{name} — tomorrow ({date})",
     },
     alerts: {
       missingPrefs:
@@ -374,6 +389,7 @@ export const translations = {
       listTitle: "Employees ({count})",
       emptyList: "The list is empty. Add your first employee.",
       deleteConfirm: 'Remove employee "{name}"?',
+      birthDateLabel: "Date of birth",
     },
     preferences: {
       title: "Availability preferences",
@@ -488,6 +504,13 @@ export const translations = {
       overtimeEmpty: "Ningún empleado superó su límite semanal.",
       overtimeRow: "{name}: {scheduled}h / máx {max}h (+{excess}h)",
       loggedOvertime: "Horas extra registradas esta semana: {hours}h",
+      birthdaysTitle: "Cumpleaños del equipo",
+      birthdaysToday: "Hoy",
+      birthdaysUpcoming: "Próximamente",
+      birthdaysEmpty: "No hay cumpleaños en los próximos 30 días.",
+      birthdayToday: "¡{name} cumple años hoy!",
+      birthdayInDays: "{name} — {date} (en {days} días)",
+      birthdayTomorrow: "{name} — mañana ({date})",
     },
     alerts: {
       missingPrefs:
@@ -566,6 +589,7 @@ export const translations = {
       listTitle: "Empleados ({count})",
       emptyList: "La lista está vacía. Añada su primer empleado.",
       deleteConfirm: '¿Eliminar empleado "{name}"?',
+      birthDateLabel: "Fecha de nacimiento",
     },
     preferences: {
       title: "Preferencias de disponibilidad",

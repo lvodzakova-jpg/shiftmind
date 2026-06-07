@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { DatabaseError } from "@/components/DatabaseError";
 import { PreferencesPageView } from "@/components/views/PreferencesPageView";
 import { TABLES } from "@/lib/db";

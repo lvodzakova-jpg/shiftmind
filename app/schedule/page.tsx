@@ -1,7 +1,8 @@
+export const dynamic = 'force-dynamic';
 import { ScheduleView } from "@/components/views/ScheduleView";
 import { COLS, TABLES } from "@/lib/db";
 import { createServerClient } from "@/lib/supabase/server";
-import type { Shift, Staff } from "@/lib/types";
+import type { BranchSettings, Shift, Staff } from "@/lib/types";
 import { formatDateISO, getWeekEnd, getWeekStart } from "@/lib/week";
 
 interface PageProps {
@@ -16,20 +17,23 @@ export default async function SchedulePage({ searchParams }: PageProps) {
       : formatDateISO(getWeekStart());
 
   const supabase = createServerClient();
-  const [{ data: employees }, { data: shifts }] = await Promise.all([
-    supabase.from(TABLES.employees).select("*").order("name"),
-    supabase
-      .from(TABLES.shifts)
-      .select("*")
-      .gte(COLS.shiftDate, weekStart)
-      .lte(COLS.shiftDate, getWeekEnd(weekStart)),
-  ]);
+  const [{ data: employees }, { data: shifts }, { data: branchSettings }] =
+    await Promise.all([
+      supabase.from(TABLES.employees).select("*").order("name"),
+      supabase
+        .from(TABLES.shifts)
+        .select("*")
+        .gte(COLS.shiftDate, weekStart)
+        .lte(COLS.shiftDate, getWeekEnd(weekStart)),
+      supabase.from(TABLES.branchSettings).select("*").limit(1).maybeSingle(),
+    ]);
 
   return (
     <ScheduleView
       weekStart={weekStart}
       staff={(employees ?? []) as Staff[]}
       shifts={(shifts ?? []) as Shift[]}
+      branchSettings={(branchSettings ?? null) as BranchSettings | null}
     />
   );
 }

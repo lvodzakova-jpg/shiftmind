@@ -1,19 +1,110 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafaf9;
-  --foreground: #1c1917;
+  --brand-primary: #0F3D2E;
+  --brand-primary-hover: #0A2D22;
+  --brand-accent: #7EC8E3;
+  --brand-accent-muted: #B8E4F0;
+  --bg-app: #F5F5F5;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #FFFFFF;
+  --bg-subtle: rgba(0, 0, 0, 0.04);
+  --text-primary: #000000;
+  --text-muted: rgba(0, 0, 0, 0.65);
+  --text-on-brand: #FFFFFF;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --nav-bg: rgba(255, 255, 255, 0.95);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-brand: var(--brand-primary);
+  --color-brand-hover: var(--brand-primary-hover);
+  --color-accent: var(--brand-accent);
+  --color-accent-muted: var(--brand-accent-muted);
+  --color-app: var(--bg-app);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-subtle: var(--bg-subtle);
+  --color-foreground: var(--text-primary);
+  --color-muted: var(--text-muted);
+  --color-border: var(--border-color);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg-app);
+  color: var(--text-primary);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.bg-app { background-color: var(--bg-app); }
+.bg-surface { background-color: var(--bg-surface); }
+.bg-elevated { background-color: var(--bg-elevated); }
+.bg-subtle { background-color: var(--bg-subtle); }
+.bg-brand { background-color: var(--brand-primary); }
+.hover\:bg-brand-hover:hover { background-color: var(--brand-primary-hover); }
+
+.text-foreground { color: var(--text-primary); }
+.text-muted { color: var(--text-muted); }
+.text-on-brand { color: var(--text-on-brand); }
+.text-brand { color: var(--text-primary); }
+.text-accent { color: var(--text-primary); }
+
+.border-default { border-color: var(--border-color); }
+.border-brand { border-color: var(--brand-primary); }
+.border-accent { border-color: var(--brand-accent); }
+
+.btn-primary {
+  background-color: var(--brand-primary);
+  color: var(--text-on-brand);
+  transition: background-color 0.2s ease;
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--brand-primary-hover);
+}
+
+.btn-secondary {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--brand-primary);
+}
+
+.card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  color: var(--text-primary);
+}
+
+.input-field {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 0.5rem;
+}
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+.input-field:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 20%, transparent);
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Shift badges keep accent only on icon strip, text stays readable */
+.badge-accent-strip {
+  background-color: var(--brand-accent);
 }

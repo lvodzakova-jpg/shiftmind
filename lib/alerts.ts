@@ -13,14 +13,15 @@ export interface Alert {
   message: string;
 }
 
-const MIN_STAFF_PER_DAY = 2;
+const DEFAULT_MIN_STAFF = 2;
 
 export function buildAlerts(
   locale: Locale,
   employees: Employee[],
   shifts: Shift[],
   preferences: Preference[],
-  weekStart: string
+  weekStart: string,
+  minStaffPerDay = DEFAULT_MIN_STAFF
 ): Alert[] {
   const alerts: Alert[] = [];
   const dates = getWeekDates(weekStart);
@@ -58,7 +59,7 @@ export function buildAlerts(
     const working = shifts.filter(
       (s) => s.date === date && isWorkingShift(s.shift_type)
     );
-    if (working.length < MIN_STAFF_PER_DAY) {
+    if (working.length < minStaffPerDay) {
       alerts.push({
         id: `understaffed-${date}`,
         type: "warning",
@@ -66,7 +67,7 @@ export function buildAlerts(
           day: dayNames[dayIndex],
           date,
           count: working.length,
-          min: MIN_STAFF_PER_DAY,
+          min: minStaffPerDay,
         }),
       });
     }

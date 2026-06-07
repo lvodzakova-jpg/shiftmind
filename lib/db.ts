@@ -5,6 +5,14 @@ export const TABLES = {
   shifts: "shifts",
   branchSettings: "branch_settings",
   timeLogs: "time_logs",
+  shiftTemplates: "shift_templates",
+  leaveRequests: "leave_requests",
+  leaveBalances: "leave_balances",
+  hrDocuments: "hr_documents",
+  messages: "messages",
+  pushSubscriptions: "push_subscriptions",
+  notificationPreferences: "notification_preferences",
+  shiftSwapRequests: "shift_swap_requests",
 } as const;
 
 export const COLS = {
@@ -17,4 +25,13 @@ export const COLS = {
   clockOut: "clock_out",
   actualHours: "actual_hours",
   overtimeHours: "overtime_hours",
+  clockInLat: "clock_in_lat",
+  clockInLng: "clock_in_lng",
+  clockOutLat: "clock_out_lat",
+  clockOutLng: "clock_out_lng",
+  leaveType: "leave_type",
+  startDate: "start_date",
+  endDate: "end_date",
+  recipientId: "recipient_id",
+  senderId: "sender_id",
 } as const;

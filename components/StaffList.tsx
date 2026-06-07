@@ -3,11 +3,20 @@
 import { useTranslation } from "@/components/LanguageProvider";
 import { TABLES } from "@/lib/db";
 import { formatMaxHours, isValidMaxHoursPerWeek } from "@/lib/hours";
-import { ROLE_OPTIONS, getRoleLabel } from "@/lib/i18n";
+import { formatBirthdayDate } from "@/lib/birthdays";
+import { LOCALE_DATE_FORMAT, ROLE_OPTIONS, getRoleLabel } from "@/lib/i18n";
 import { createBrowserClient } from "@/lib/supabase/client";
-import type { Staff } from "@/lib/types";
+import type { ContractType, Staff } from "@/lib/types";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+
+const CONTRACT_TYPES: ContractType[] = [
+  "full_time",
+  "part_time",
+  "temporary",
+  "intern",
+];
 
 interface StaffListProps {
   initialStaff: Staff[];
@@ -21,6 +30,10 @@ export function StaffList({ initialStaff }: StaffListProps) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<string>(ROLE_OPTIONS[0].value);
   const [maxHours, setMaxHours] = useState("");
+  const [hourlyRate, setHourlyRate] = useState("");
+  const [contractType, setContractType] = useState<ContractType>("full_time");
+  const [phone, setPhone] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +58,10 @@ export function StaffList({ initialStaff }: StaffListProps) {
         email: email.trim(),
         role,
         max_hours_per_week: maxHoursPerWeek,
+        hourly_rate: Number(hourlyRate) || 0,
+        contract_type: contractType,
+        phone: phone.trim(),
+        birth_date: birthDate || null,
       })
       .select()
       .single();
@@ -57,11 +74,18 @@ export function StaffList({ initialStaff }: StaffListProps) {
     }
 
     if (data) {
+      await supabase.from(TABLES.preferences).insert({
+        employee_id: data.id,
+      });
       setStaff((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
       setName("");
       setEmail("");
       setRole(ROLE_OPTIONS[0].value);
       setMaxHours("");
+      setHourlyRate("");
+      setPhone("");
+      setBirthDate("");
+      setContractType("full_time");
       router.refresh();
     }
   }
@@ -88,16 +112,16 @@ export function StaffList({ initialStaff }: StaffListProps) {
     <div className="grid gap-8 lg:grid-cols-2">
       <form
         onSubmit={handleAdd}
-        className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
+        className="rounded-2xl border border-default bg-surface p-6 shadow-sm"
       >
-        <h2 className="mb-4 text-lg font-semibold text-stone-900">
+        <h2 className="mb-4 text-lg font-semibold text-foreground">
           {t("staff.addTitle")}
         </h2>
         <div className="space-y-4">
           <div>
             <label
               htmlFor="name"
-              className="mb-1 block text-sm font-medium text-stone-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               {t("staff.nameLabel")}
             </label>
@@ -107,14 +131,14 @@ export function StaffList({ initialStaff }: StaffListProps) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t("staff.namePlaceholder")}
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900 placeholder:text-stone-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              className="w-full rounded-lg border border-default px-3 py-2 text-foreground placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
               required
             />
           </div>
           <div>
             <label
               htmlFor="email"
-              className="mb-1 block text-sm font-medium text-stone-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               {t("staff.emailLabel")}
             </label>
@@ -124,14 +148,14 @@ export function StaffList({ initialStaff }: StaffListProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t("staff.emailPlaceholder")}
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900 placeholder:text-stone-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              className="w-full rounded-lg border border-default px-3 py-2 text-foreground placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
               required
             />
           </div>
           <div>
             <label
               htmlFor="role"
-              className="mb-1 block text-sm font-medium text-stone-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               {t("staff.roleLabel")}
             </label>
@@ -139,7 +163,7 @@ export function StaffList({ initialStaff }: StaffListProps) {
               id="role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              className="w-full rounded-lg border border-default px-3 py-2 text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
               required
             >
               {ROLE_OPTIONS.map((r) => (
@@ -152,7 +176,7 @@ export function StaffList({ initialStaff }: StaffListProps) {
           <div>
             <label
               htmlFor="max-hours"
-              className="mb-1 block text-sm font-medium text-stone-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               {t("staff.maxHoursLabel")}
             </label>
@@ -165,8 +189,62 @@ export function StaffList({ initialStaff }: StaffListProps) {
               value={maxHours}
               onChange={(e) => setMaxHours(e.target.value)}
               placeholder={t("staff.maxHoursPlaceholder")}
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900 placeholder:text-stone-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              className="w-full rounded-lg border border-default px-3 py-2 text-foreground placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
               required
+            />
+          </div>
+          <div>
+            <label htmlFor="hourly-rate" className="mb-1 block text-sm font-medium text-foreground">
+              {t("staff.hourlyRateLabel")}
+            </label>
+            <input
+              id="hourly-rate"
+              type="number"
+              step="0.01"
+              value={hourlyRate}
+              onChange={(e) => setHourlyRate(e.target.value)}
+              className="w-full rounded-lg border border-default px-3 py-2"
+            />
+          </div>
+          <div>
+            <label htmlFor="contract-type" className="mb-1 block text-sm font-medium text-foreground">
+              {t("staff.contractLabel")}
+            </label>
+            <select
+              id="contract-type"
+              value={contractType}
+              onChange={(e) => setContractType(e.target.value as ContractType)}
+              className="w-full rounded-lg border border-default px-3 py-2"
+            >
+              {CONTRACT_TYPES.map((ct) => (
+                <option key={ct} value={ct}>
+                  {t(`profile.contracts.${ct}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="phone" className="mb-1 block text-sm font-medium text-foreground">
+              {t("staff.phoneLabel")}
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full rounded-lg border border-default px-3 py-2"
+            />
+          </div>
+          <div>
+            <label htmlFor="birth-date" className="mb-1 block text-sm font-medium text-foreground">
+              {t("staff.birthDateLabel")}
+            </label>
+            <input
+              id="birth-date"
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              className="w-full rounded-lg border border-default px-3 py-2"
             />
           </div>
           {error && (
@@ -177,41 +255,51 @@ export function StaffList({ initialStaff }: StaffListProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-amber-600 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+            className="w-full rounded-xl bg-brand py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-hover disabled:opacity-60"
           >
             {loading ? t("common.saving") : t("staff.addButton")}
           </button>
         </div>
       </form>
 
-      <div className="rounded-2xl border border-stone-200 bg-white shadow-sm">
-        <div className="border-b border-stone-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-stone-900">
+      <div className="rounded-2xl border border-default bg-surface shadow-sm">
+        <div className="border-b border-default px-6 py-4">
+          <h2 className="text-lg font-semibold text-foreground">
             {t("staff.listTitle", { count: staff.length })}
           </h2>
         </div>
         {staff.length === 0 ? (
-          <p className="px-6 py-8 text-center text-stone-500">
+          <p className="px-6 py-8 text-center text-muted">
             {t("staff.emptyList")}
           </p>
         ) : (
-          <ul className="divide-y divide-stone-100">
+          <ul className="divide-y divide-[var(--border-color)]">
             {staff.map((person) => (
               <li
                 key={person.id}
                 className="flex items-center justify-between gap-4 px-6 py-4"
               >
                 <div>
-                  <p className="font-medium text-stone-900">{person.name}</p>
+                  <p className="font-medium text-foreground">{person.name}</p>
                   {person.email && (
-                    <p className="text-sm text-stone-500">{person.email}</p>
+                    <p className="text-sm text-muted">{person.email}</p>
                   )}
-                  <p className="text-xs text-stone-400">
+                  <p className="text-xs text-muted">
                     {getRoleLabel(locale, person.role)}
                     {person.max_hours_per_week != null &&
                       ` · ${t("staff.hoursPerWeek", { hours: formatMaxHours(person.max_hours_per_week) })}`}
+                    {(person.hourly_rate ?? 0) > 0 && ` · €${person.hourly_rate}/h`}
+                    {person.birth_date &&
+                      ` · 🎂 ${formatBirthdayDate(person.birth_date, LOCALE_DATE_FORMAT[locale], true)}`}
                   </p>
                 </div>
+                <div className="flex items-center gap-2">
+                <Link
+                  href={`/profile/${person.id}`}
+                  className="rounded-lg px-3 py-1.5 text-sm font-medium text-brand hover:bg-subtle"
+                >
+                  {t("staff.viewProfile")}
+                </Link>
                 <button
                   type="button"
                   onClick={() => handleDelete(person.id, person.name)}
@@ -219,6 +307,7 @@ export function StaffList({ initialStaff }: StaffListProps) {
                 >
                   {t("common.remove")}
                 </button>
+                </div>
               </li>
             ))}
           </ul>

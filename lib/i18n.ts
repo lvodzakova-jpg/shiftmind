@@ -1,3 +1,4 @@
+import { mergeTranslations } from "./translations-enterprise";
 import {
   DEFAULT_LOCALE,
   LOCALE_LABELS,
@@ -5,6 +6,13 @@ import {
   type Locale,
   translations,
 } from "./translations";
+
+const mergedTranslations = Object.fromEntries(
+  LOCALES.map((locale) => [
+    locale,
+    mergeTranslations(translations[locale], locale),
+  ])
+) as typeof translations;
 
 export {
   DEFAULT_LOCALE,
@@ -44,7 +52,7 @@ export function translate(
   params?: Params
 ): string {
   let text = getByPath(
-    translations[locale] as unknown as Record<string, unknown>,
+    mergedTranslations[locale] as unknown as Record<string, unknown>,
     key
   );
   if (params) {

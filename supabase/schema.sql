@@ -11,6 +11,12 @@ create table if not exists employees (
     max_hours_per_week >= 1 and max_hours_per_week <= 60
     and mod(max_hours_per_week * 2, 1) = 0
   ),
+  hourly_rate numeric(8, 2) not null default 0,
+  contract_type text not null default 'full_time' check (
+    contract_type in ('full_time', 'part_time', 'temporary', 'intern')
+  ),
+  phone text not null default '',
+  birth_date date,
   created_at timestamptz not null default now()
 );
 
@@ -72,6 +78,12 @@ create table if not exists branch_settings (
   id uuid primary key default gen_random_uuid(),
   branch_name text not null default 'Kaviareň Centrum',
   min_staff_per_shift int not null default 2 check (min_staff_per_shift >= 1),
+  meal_allowance numeric(8, 2) not null default 0,
+  weekly_budget numeric(10, 2) not null default 0,
+  gps_radius_m int not null default 100 check (gps_radius_m >= 0),
+  workplace_lat numeric(10, 7),
+  workplace_lng numeric(10, 7),
+  legal_country text not null default 'sk' check (legal_country in ('sk', 'es')),
   monday_open time not null default '07:00',
   monday_close time not null default '22:00',
   tuesday_open time not null default '07:00',
@@ -96,7 +108,11 @@ create table if not exists time_logs (
   clock_in timestamptz not null,
   clock_out timestamptz,
   actual_hours numeric(6, 2),
-  overtime_hours numeric(6, 2)
+  overtime_hours numeric(6, 2),
+  clock_in_lat numeric(10, 7),
+  clock_in_lng numeric(10, 7),
+  clock_out_lat numeric(10, 7),
+  clock_out_lng numeric(10, 7)
 );
 
 create index if not exists idx_time_logs_employee on time_logs(employee_id);
@@ -111,16 +127,186 @@ create policy "branch_settings_all" on branch_settings for all using (true) with
 drop policy if exists "time_logs_all" on time_logs;
 create policy "time_logs_all" on time_logs for all using (true) with check (true);
 
+-- Enterprise tables
+
+create table if not exists shift_templates (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  shift_type text not null check (
+    shift_type in ('morning', 'evening', 'full', 'off', 'sick')
+  ),
+  employee_id uuid references employees(id) on delete set null,
+  recurrence text not null default 'weekly' check (
+    recurrence in ('daily', 'weekly', 'biweekly', 'monthly', 'last_weekday')
+  ),
+  weekday int check (weekday >= 0 and weekday <= 6),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists leave_requests (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid not null references employees(id) on delete cascade,
+  type text not null check (
+    type in ('paid', 'sick', 'unpaid', 'bank_holiday', 'rtt')
+  ),
+  start_date date not null,
+  end_date date not null,
+  status text not null default 'pending' check (
+    status in ('pending', 'approved', 'rejected')
+  ),
+  note text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_leave_requests_employee on leave_requests(employee_id);
+create index if not exists idx_leave_requests_status on leave_requests(status);
+
+create table if not exists shift_swap_requests (
+  id uuid primary key default gen_random_uuid(),
+  requester_id uuid not null references employees(id) on delete cascade,
+  shift_id uuid not null references shifts(id) on delete cascade,
+  cover_employee_id uuid references employees(id) on delete set null,
+  exchange_shift_id uuid references shifts(id) on delete set null,
+  status text not null default 'pending' check (
+    status in ('pending', 'approved', 'rejected')
+  ),
+  note text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_shift_swap_status on shift_swap_requests(status);
+create index if not exists idx_shift_swap_requester on shift_swap_requests(requester_id);
+
+create table if not exists leave_balances (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid not null references employees(id) on delete cascade,
+  leave_type text not null check (
+    leave_type in ('paid', 'sick', 'unpaid', 'bank_holiday', 'rtt')
+  ),
+  total_days numeric(5, 1) not null default 0,
+  used_days numeric(5, 1) not null default 0,
+  year int not null,
+  unique (employee_id, leave_type, year)
+);
+
+create table if not exists hr_documents (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid not null references employees(id) on delete cascade,
+  name text not null,
+  type text not null check (type in ('contract', 'id', 'certificate', 'other')),
+  url text not null,
+  uploaded_at timestamptz not null default now()
+);
+
+create index if not exists idx_hr_documents_employee on hr_documents(employee_id);
+
+create table if not exists messages (
+  id uuid primary key default gen_random_uuid(),
+  sender_id uuid not null references employees(id) on delete cascade,
+  recipient_id uuid references employees(id) on delete cascade,
+  content text not null,
+  read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_messages_recipient on messages(recipient_id);
+create index if not exists idx_messages_sender on messages(sender_id);
+
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid references employees(id) on delete cascade,
+  endpoint text not null unique,
+  subscription jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists notification_preferences (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid not null unique references employees(id) on delete cascade,
+  schedule_published boolean not null default true,
+  shift_changed boolean not null default true,
+  leave_updated boolean not null default true,
+  new_message boolean not null default true,
+  document_reminder boolean not null default true
+);
+
+alter table shift_templates enable row level security;
+alter table leave_requests enable row level security;
+alter table shift_swap_requests enable row level security;
+alter table leave_balances enable row level security;
+alter table hr_documents enable row level security;
+alter table messages enable row level security;
+alter table push_subscriptions enable row level security;
+alter table notification_preferences enable row level security;
+
+drop policy if exists "shift_templates_all" on shift_templates;
+create policy "shift_templates_all" on shift_templates for all using (true) with check (true);
+
+drop policy if exists "leave_requests_all" on leave_requests;
+create policy "leave_requests_all" on leave_requests for all using (true) with check (true);
+
+drop policy if exists "shift_swap_requests_all" on shift_swap_requests;
+create policy "shift_swap_requests_all" on shift_swap_requests for all using (true) with check (true);
+
+drop policy if exists "leave_balances_all" on leave_balances;
+create policy "leave_balances_all" on leave_balances for all using (true) with check (true);
+
+drop policy if exists "hr_documents_all" on hr_documents;
+create policy "hr_documents_all" on hr_documents for all using (true) with check (true);
+
+drop policy if exists "messages_all" on messages;
+create policy "messages_all" on messages for all using (true) with check (true);
+
+drop policy if exists "push_subscriptions_all" on push_subscriptions;
+create policy "push_subscriptions_all" on push_subscriptions for all using (true) with check (true);
+
+drop policy if exists "notification_preferences_all" on notification_preferences;
+create policy "notification_preferences_all" on notification_preferences for all using (true) with check (true);
+
+-- Migrations for existing databases
+alter table employees add column if not exists hourly_rate numeric(8, 2) not null default 0;
+alter table employees add column if not exists contract_type text not null default 'full_time';
+alter table employees add column if not exists phone text not null default '';
+alter table employees add column if not exists birth_date date;
+alter table notification_preferences add column if not exists document_reminder boolean not null default true;
+
+create table if not exists shift_swap_requests (
+  id uuid primary key default gen_random_uuid(),
+  requester_id uuid not null references employees(id) on delete cascade,
+  shift_id uuid not null references shifts(id) on delete cascade,
+  cover_employee_id uuid references employees(id) on delete set null,
+  exchange_shift_id uuid references shifts(id) on delete set null,
+  status text not null default 'pending' check (
+    status in ('pending', 'approved', 'rejected')
+  ),
+  note text,
+  created_at timestamptz not null default now()
+);
+alter table branch_settings add column if not exists meal_allowance numeric(8, 2) not null default 0;
+alter table branch_settings add column if not exists weekly_budget numeric(10, 2) not null default 0;
+alter table branch_settings add column if not exists gps_radius_m int not null default 100;
+alter table branch_settings add column if not exists workplace_lat numeric(10, 7);
+alter table branch_settings add column if not exists workplace_lng numeric(10, 7);
+alter table branch_settings add column if not exists legal_country text not null default 'sk';
+alter table time_logs add column if not exists clock_in_lat numeric(10, 7);
+alter table time_logs add column if not exists clock_in_lng numeric(10, 7);
+alter table time_logs add column if not exists clock_out_lat numeric(10, 7);
+alter table time_logs add column if not exists clock_out_lng numeric(10, 7);
+
 insert into branch_settings (branch_name, min_staff_per_shift)
 select 'Kaviareň Centrum', 2
 where not exists (select 1 from branch_settings limit 1);
 
--- Ukážkoví zamestnanci
-insert into employees (name, email, role, max_hours_per_week)
+insert into employees (name, email, role, max_hours_per_week, birth_date)
 select * from (values
-  ('Mária Nováková', 'maria@kaviaren.sk', 'manager', 40),
-  ('Peter Kováč', 'peter@kaviaren.sk', 'barista', 35.5),
-  ('Eva Horváthová', 'eva@kaviaren.sk', 'senior_barista', 40),
-  ('Ján Šimko', 'jan@kaviaren.sk', 'waiter', 20)
-) as v(name, email, role, max_hours_per_week)
+  ('Mária Nováková', 'maria@kaviaren.sk', 'manager', 40::numeric, '1988-06-06'::date),
+  ('Peter Kováč', 'peter@kaviaren.sk', 'barista', 35.5::numeric, '1995-06-10'::date),
+  ('Eva Horváthová', 'eva@kaviaren.sk', 'senior_barista', 40::numeric, '1992-03-15'::date),
+  ('Ján Šimko', 'jan@kaviaren.sk', 'waiter', 20::numeric, '2000-12-01'::date)
+) as v(name, email, role, max_hours_per_week, birth_date)
 where not exists (select 1 from employees limit 1);
+
+update employees set birth_date = '1988-06-06' where email = 'maria@kaviaren.sk' and birth_date is null;
+update employees set birth_date = '1995-06-10' where email = 'peter@kaviaren.sk' and birth_date is null;
+update employees set birth_date = '1992-03-15' where email = 'eva@kaviaren.sk' and birth_date is null;
+update employees set birth_date = '2000-12-01' where email = 'jan@kaviaren.sk' and birth_date is null;

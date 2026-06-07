@@ -24,9 +24,9 @@ export function PreferencesPageView({
         description={t("preferences.description")}
       />
       {staff.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-12 text-center text-stone-600">
+        <div className="rounded-2xl border border-dashed border-default bg-surface p-12 text-center text-muted">
           {t("preferences.empty")}{" "}
-          <Link href="/staff" className="font-medium text-amber-700 hover:underline">
+          <Link href="/staff" className="font-medium text-brand hover:underline">
             {t("preferences.teamLink")}
           </Link>
           .

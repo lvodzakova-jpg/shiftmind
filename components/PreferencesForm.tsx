@@ -113,7 +113,7 @@ export function PreferencesForm({
       <div className="mb-6">
         <label
           htmlFor="staff-select"
-          className="mb-2 block text-sm font-medium text-stone-700"
+          className="mb-2 block text-sm font-medium text-foreground"
         >
           {t("preferences.employee")}
         </label>
@@ -124,7 +124,7 @@ export function PreferencesForm({
             setSelectedStaffId(e.target.value);
             setMessage(null);
           }}
-          className="w-full rounded-lg border border-stone-300 px-3 py-2 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+          className="w-full rounded-lg border border-default px-3 py-2 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
         >
           {staff.map((s) => (
             <option key={s.id} value={s.id}>
@@ -136,13 +136,13 @@ export function PreferencesForm({
 
       <form
         onSubmit={handleSave}
-        className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
+        className="rounded-2xl border border-default bg-surface p-6 shadow-sm"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-stone-900">
+          <h2 className="text-lg font-semibold text-foreground">
             {selectedStaff?.name ?? t("preferences.prefsFallback")}
           </h2>
-          <span className="text-sm text-stone-500">
+          <span className="text-sm text-muted">
             {t("preferences.daysSet", { filled: filledCount })}
           </span>
         </div>
@@ -151,15 +151,15 @@ export function PreferencesForm({
           {dayNames.map((dayName, dayIndex) => (
             <div
               key={dayName}
-              className="flex flex-col gap-2 rounded-xl border border-stone-100 bg-stone-50/50 p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-2 rounded-xl border border-default bg-subtle/50 p-4 sm:flex-row sm:items-center sm:justify-between"
             >
-              <span className="font-medium text-stone-800">{dayName}</span>
+              <span className="font-medium text-foreground">{dayName}</span>
               <select
                 value={getValue(dayIndex)}
                 onChange={(e) =>
                   setDay(dayIndex, e.target.value as AvailabilityType)
                 }
-                className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 sm:min-w-[220px]"
+                className="rounded-lg border border-default bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 sm:min-w-[220px]"
               >
                 {AVAILABILITY_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>
@@ -177,7 +177,7 @@ export function PreferencesForm({
           </p>
         )}
         {message && (
-          <p className="mt-4 text-sm text-emerald-700" role="status">
+          <p className="mt-4 text-sm text-accent" role="status">
             {message}
           </p>
         )}
@@ -185,7 +185,7 @@ export function PreferencesForm({
         <button
           type="submit"
           disabled={saving}
-          className="mt-6 w-full rounded-xl bg-amber-600 py-3 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+          className="mt-6 w-full rounded-xl bg-brand py-3 text-sm font-semibold text-on-brand hover:bg-brand-hover disabled:opacity-60"
         >
           {saving ? t("preferences.saving") : t("preferences.saveButton")}
         </button>

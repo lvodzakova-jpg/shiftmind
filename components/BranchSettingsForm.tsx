@@ -9,7 +9,8 @@ import {
 import { TABLES } from "@/lib/db";
 import { getDayNames } from "@/lib/i18n";
 import { createBrowserClient } from "@/lib/supabase/client";
-import type { BranchSettings } from "@/lib/types";
+import { registerPushNotifications } from "@/lib/push-client";
+import type { BranchSettings, LegalCountry } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -52,6 +53,29 @@ export function BranchSettingsForm({
     }
     return map;
   });
+  const [mealAllowance, setMealAllowance] = useState(
+    String(initialSettings?.meal_allowance ?? 0)
+  );
+  const [weeklyBudget, setWeeklyBudget] = useState(
+    String(initialSettings?.weekly_budget ?? 0)
+  );
+  const [gpsRadius, setGpsRadius] = useState(
+    String(initialSettings?.gps_radius_m ?? 100)
+  );
+  const [workplaceLat, setWorkplaceLat] = useState(
+    initialSettings?.workplace_lat != null
+      ? String(initialSettings.workplace_lat)
+      : ""
+  );
+  const [workplaceLng, setWorkplaceLng] = useState(
+    initialSettings?.workplace_lng != null
+      ? String(initialSettings.workplace_lng)
+      : ""
+  );
+  const [legalCountry, setLegalCountry] = useState<LegalCountry>(
+    initialSettings?.legal_country ?? "sk"
+  );
+  const [pushStatus, setPushStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,9 +93,15 @@ export function BranchSettingsForm({
       return;
     }
 
-    const row: Record<string, string | number> = {
+    const row: Record<string, string | number | null> = {
       branch_name: branchName.trim(),
       min_staff_per_shift: minStaffNum,
+      meal_allowance: Number(mealAllowance) || 0,
+      weekly_budget: Number(weeklyBudget) || 0,
+      gps_radius_m: Number(gpsRadius) || 100,
+      workplace_lat: workplaceLat ? Number(workplaceLat) : null,
+      workplace_lng: workplaceLng ? Number(workplaceLng) : null,
+      legal_country: legalCountry,
       updated_at: new Date().toISOString(),
     };
     for (const day of BRANCH_DAYS) {
@@ -111,11 +141,11 @@ export function BranchSettingsForm({
   return (
     <form
       onSubmit={handleSave}
-      className="max-w-2xl rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
+      className="max-w-2xl rounded-2xl border border-default bg-surface p-6 shadow-sm"
     >
       <div className="space-y-4">
         <div>
-          <label htmlFor="branch-name" className="mb-1 block text-sm font-medium text-stone-700">
+          <label htmlFor="branch-name" className="mb-1 block text-sm font-medium text-foreground">
             {t("settings.branchName")}
           </label>
           <input
@@ -124,12 +154,12 @@ export function BranchSettingsForm({
             value={branchName}
             onChange={(e) => setBranchName(e.target.value)}
             placeholder={t("settings.branchNamePlaceholder")}
-            className="w-full rounded-lg border border-stone-300 px-3 py-2 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+            className="w-full rounded-lg border border-default px-3 py-2 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             required
           />
         </div>
         <div>
-          <label htmlFor="min-staff" className="mb-1 block text-sm font-medium text-stone-700">
+          <label htmlFor="min-staff" className="mb-1 block text-sm font-medium text-foreground">
             {t("settings.minStaff")}
           </label>
           <input
@@ -139,12 +169,89 @@ export function BranchSettingsForm({
             max={20}
             value={minStaff}
             onChange={(e) => setMinStaff(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-3 py-2 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+            className="w-full rounded-lg border border-default px-3 py-2 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             required
           />
         </div>
 
-        <h3 className="pt-2 text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              {t("settings.mealAllowance")}
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={mealAllowance}
+              onChange={(e) => setMealAllowance(e.target.value)}
+              className="w-full rounded-lg border border-default px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              {t("settings.weeklyBudget")}
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={weeklyBudget}
+              onChange={(e) => setWeeklyBudget(e.target.value)}
+              className="w-full rounded-lg border border-default px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              {t("settings.gpsRadius")}
+            </label>
+            <input
+              type="number"
+              value={gpsRadius}
+              onChange={(e) => setGpsRadius(e.target.value)}
+              className="w-full rounded-lg border border-default px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              {t("settings.legalCountry")}
+            </label>
+            <select
+              value={legalCountry}
+              onChange={(e) => setLegalCountry(e.target.value as LegalCountry)}
+              className="w-full rounded-lg border border-default px-3 py-2"
+            >
+              <option value="sk">{t("settings.countries.sk")}</option>
+              <option value="es">{t("settings.countries.es")}</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              {t("settings.workplaceLat")}
+            </label>
+            <input
+              type="number"
+              step="any"
+              value={workplaceLat}
+              onChange={(e) => setWorkplaceLat(e.target.value)}
+              placeholder="48.1486"
+              className="w-full rounded-lg border border-default px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              {t("settings.workplaceLng")}
+            </label>
+            <input
+              type="number"
+              step="any"
+              value={workplaceLng}
+              onChange={(e) => setWorkplaceLng(e.target.value)}
+              placeholder="17.1077"
+              className="w-full rounded-lg border border-default px-3 py-2"
+            />
+          </div>
+        </div>
+
+        <h3 className="pt-2 text-sm font-semibold uppercase tracking-wide text-muted">
           {t("settings.hoursTitle")}
         </h3>
 
@@ -152,13 +259,13 @@ export function BranchSettingsForm({
           {BRANCH_DAYS.map((day, i) => (
             <div
               key={day}
-              className="flex flex-col gap-2 rounded-xl border border-stone-100 bg-stone-50/50 p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-2 rounded-xl border border-default bg-subtle/50 p-4 sm:flex-row sm:items-center sm:justify-between"
             >
-              <span className="min-w-[100px] font-medium text-stone-800">
+              <span className="min-w-[100px] font-medium text-foreground">
                 {dayNames[i]}
               </span>
               <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-sm text-stone-600">
+                <label className="flex items-center gap-2 text-sm text-muted">
                   {t("settings.open")}
                   <input
                     type="time"
@@ -169,11 +276,11 @@ export function BranchSettingsForm({
                         [branchDayOpenKey(day)]: e.target.value,
                       }))
                     }
-                    className="rounded-lg border border-stone-300 px-2 py-1.5"
+                    className="rounded-lg border border-default px-2 py-1.5"
                     required
                   />
                 </label>
-                <label className="flex items-center gap-2 text-sm text-stone-600">
+                <label className="flex items-center gap-2 text-sm text-muted">
                   {t("settings.close")}
                   <input
                     type="time"
@@ -184,7 +291,7 @@ export function BranchSettingsForm({
                         [branchDayCloseKey(day)]: e.target.value,
                       }))
                     }
-                    className="rounded-lg border border-stone-300 px-2 py-1.5"
+                    className="rounded-lg border border-default px-2 py-1.5"
                     required
                   />
                 </label>
@@ -199,15 +306,32 @@ export function BranchSettingsForm({
           </p>
         )}
         {message && (
-          <p className="text-sm text-emerald-700" role="status">
+          <p className="text-sm text-accent" role="status">
             {message}
           </p>
         )}
 
+        <div className="rounded-xl border border-default bg-subtle p-4">
+          <h3 className="mb-2 text-sm font-semibold">{t("settings.notifications")}</h3>
+          <button
+            type="button"
+            onClick={async () => {
+              const ok = await registerPushNotifications();
+              setPushStatus(ok ? t("settings.pushEnabled") : t("settings.pushDisabled"));
+            }}
+            className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-on-brand hover:bg-brand-hover"
+          >
+            {t("settings.enablePush")}
+          </button>
+          {pushStatus && (
+            <p className="mt-2 text-sm text-muted">{pushStatus}</p>
+          )}
+        </div>
+
         <button
           type="submit"
           disabled={saving}
-          className="w-full rounded-xl bg-amber-600 py-3 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+          className="w-full rounded-xl bg-brand py-3 text-sm font-semibold text-on-brand hover:bg-brand-hover disabled:opacity-60"
         >
           {saving ? t("common.saving") : t("settings.saveButton")}
         </button>

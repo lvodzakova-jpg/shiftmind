@@ -8,6 +8,9 @@ import {
 import { createServerClient } from "@/lib/supabase/server";
 import { getShiftDbTimes, isStorableShift } from "@/lib/shifts";
 import type { GeneratedSchedule, Preference, ShiftType } from "@/lib/types";
+import { BRANCH_DAYS, branchDayCloseKey, branchDayOpenKey } from "@/lib/branch-settings";
+import { getDateRange } from "@/lib/leaves";
+import type { BranchSettings, LeaveRequest } from "@/lib/types";
 import { formatDateISO, getWeekDates, getWeekEnd, getWeekStart } from "@/lib/week";
 
 function extractJson(text: string): GeneratedSchedule {
@@ -48,9 +51,14 @@ export async function POST(request: Request) {
 
     const supabase = createServerClient();
 
+    const locale =
+      typeof body.locale === "string" && ["sk", "en", "es"].includes(body.locale)
+        ? body.locale
+        : "en";
+
     const { data: employees, error: employeesError } = await supabase
       .from(TABLES.employees)
-      .select("id, name, role");
+      .select("id, name, role, max_hours_per_week, contract_type");
 
     if (employeesError) {
       return NextResponse.json(
@@ -91,6 +99,39 @@ export async function POST(request: Request) {
       "Nedeľa",
     ];
 
+    const [{ data: branchRow }, { data: leaveRows }] = await Promise.all([
+      supabase.from(TABLES.branchSettings).select("*").limit(1).maybeSingle(),
+      supabase
+        .from(TABLES.leaveRequests)
+        .select("employee_id, type, start_date, end_date, status")
+        .eq("status", "approved")
+        .lte("start_date", getWeekEnd(weekStart))
+        .gte("end_date", weekStart),
+    ]);
+
+    const branch = branchRow as BranchSettings | null;
+    const minStaff = branch?.min_staff_per_shift ?? 2;
+    const weeklyBudget = branch?.weekly_budget ?? 0;
+
+    const openingHours = BRANCH_DAYS.map((day, i) => {
+      const open = branch?.[branchDayOpenKey(day)] ?? "07:00";
+      const close = branch?.[branchDayCloseKey(day)] ?? "22:00";
+      return `${dayNames[i]}: ${open.slice(0, 5)}–${close.slice(0, 5)}`;
+    });
+
+    const unavailableByEmployee = new Map<string, string[]>();
+    for (const leave of (leaveRows ?? []) as LeaveRequest[]) {
+      const dates = getDateRange(leave.start_date, leave.end_date).filter((d) =>
+        weekDates.includes(d)
+      );
+      if (dates.length === 0) continue;
+      const existing = unavailableByEmployee.get(leave.employee_id) ?? [];
+      unavailableByEmployee.set(leave.employee_id, [
+        ...existing,
+        ...dates.map((d) => `${d} (${leave.type})`),
+      ]);
+    }
+
     const prefList = (preferences ?? []) as Preference[];
 
     const employeeContext = employees.map((e) => {
@@ -101,11 +142,17 @@ export async function POST(request: Request) {
               `${dayNames[i]}: ${getPreferenceDayValue(prefRow, i) ?? "off"}`
           )
         : [];
+      const approvedLeave = unavailableByEmployee.get(e.id);
       return {
         id: e.id,
         name: e.name,
         role: e.role,
+        max_hours_per_week: e.max_hours_per_week,
+        contract_type: e.contract_type,
         preferences: prefs.length ? prefs : ["žiadne preferencie"],
+        approved_leave_days: approvedLeave?.length
+          ? approvedLeave
+          : "žiadne",
       };
     });
 
@@ -119,27 +166,40 @@ export async function POST(request: Request) {
 
     const anthropic = new Anthropic({ apiKey });
 
-    const prompt = `Si expert na plánovanie zmien v kaviarni. Vytvor optimálny týždenný rozvrh.
+    const langHint =
+      locale === "sk"
+        ? "Odpovedaj po slovensky v prípadnom texte, JSON kľúče nechaj v angličtine."
+        : locale === "es"
+          ? "Responde en español si hay texto, claves JSON en inglés."
+          : "Use English for any prose; keep JSON keys in English.";
 
-Týždeň začína: ${weekStart}
-Dni v poradí: ${weekDates.map((d, i) => `${dayNames[i]} = ${d}`).join(", ")}
+    const prompt = `You are an expert café shift scheduler. Build an optimal weekly schedule.
+${langHint}
 
-Typy zmien:
-- morning (ranná 7:00-15:00)
-- evening (večerná 14:00-22:00)
-- full (celá 7:00-19:00)
-- off (voľno)
-- sick (PN, len ak je to nutné)
+Week starts: ${weekStart}
+Days: ${weekDates.map((d, i) => `${dayNames[i]} = ${d}`).join(", ")}
 
-Pravidlá:
-1. Každý deň musia pracovať aspoň 2 ľudia (morning/evening/full).
-2. Rešpektuj preferencie zamestnancov; "unavailable" = nepriraď pracovnú zmenu.
-3. Rozdeľ zmeny férovo — max 5 pracovných dní na osobu.
-4. Po sebe nasledujúce večerná + ranná zmena u tej istej osoby sa vyhýbaj.
-5. Manažéra priraď skôr na ranné/celé zmeny v pracovných dňoch.
-6. PN (sick) používaj len výnimočne, max 1 deň na týždeň celkovo.
+Branch opening hours:
+${openingHours.join("\n")}
 
-Zamestnanci a preferencie:
+Shift types:
+- morning (morning shift, align with opening hours)
+- evening (evening shift, align with closing hours)
+- full (full day)
+- off (day off)
+- sick (sick leave only when already in approved_leave_days)
+
+Rules:
+1. Each day at least ${minStaff} people on working shifts (morning/evening/full).
+2. Respect employee preferences; "unavailable" = no working shift.
+3. Never exceed max_hours_per_week per employee (estimate ~8h morning, ~8h evening, ~12h full).
+4. approved_leave_days = must be "off" or matching leave type — do NOT assign work.
+5. Avoid back-to-back evening then morning for the same person.
+6. Assign managers to morning/full shifts on weekdays when possible.
+7. Use "sick" only for approved sick leave days; otherwise use "off".
+${weeklyBudget > 0 ? `8. Try to stay within weekly labor budget ~€${weeklyBudget}.` : ""}
+
+Employees, preferences, and approved leave:
 ${JSON.stringify(employeeContext, null, 2)}
 
 Odpovedz VÝHRADNE platným JSON (bez markdown), presne v tomto tvare:

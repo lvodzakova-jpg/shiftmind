@@ -40,11 +40,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready) return;
     document.documentElement.lang = locale;
-    localStorage.setItem(STORAGE_KEY, locale);
   }, [locale, ready]);
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
+    localStorage.setItem(STORAGE_KEY, next);
   }, []);
 
   const t = useCallback(

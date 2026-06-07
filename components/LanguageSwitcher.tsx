@@ -8,7 +8,7 @@ export function LanguageSwitcher() {
 
   return (
     <div
-      className="flex items-center rounded-lg border border-stone-200 bg-stone-50 p-0.5"
+      className="flex items-center rounded-lg border border-default bg-surface p-0.5"
       role="group"
       aria-label={t("aria.language")}
     >
@@ -17,10 +17,10 @@ export function LanguageSwitcher() {
           key={code}
           type="button"
           onClick={() => setLocale(code as Locale)}
-          className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+          className={`rounded-md px-2.5 py-1.5 text-xs font-semibold tracking-wide transition-colors ${
             locale === code
-              ? "bg-white text-amber-900 shadow-sm"
-              : "text-stone-600 hover:text-stone-900"
+              ? "bg-brand text-on-brand"
+              : "text-foreground hover:bg-subtle"
           }`}
           aria-pressed={locale === code}
         >

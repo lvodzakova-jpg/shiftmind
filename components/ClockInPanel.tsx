@@ -3,7 +3,9 @@
 import { useTranslation } from "@/components/LanguageProvider";
 import { ShiftBadge } from "@/components/ShiftBadge";
 import { COLS, TABLES } from "@/lib/db";
+import { getCurrentPosition, haversineDistanceM } from "@/lib/gps";
 import { createBrowserClient } from "@/lib/supabase/client";
+import type { BranchSettings } from "@/lib/types";
 import {
   exceedsScheduledBy15Min,
   hoursBetweenTimestamps,
@@ -18,6 +20,7 @@ interface ClockInPanelProps {
   staff: Staff[];
   todayShifts: Shift[];
   timeLogs: TimeLog[];
+  branchSettings?: BranchSettings | null;
 }
 
 function formatTime(iso: string, locale: string): string {
@@ -31,6 +34,7 @@ export function ClockInPanel({
   staff,
   todayShifts: initialTodayShifts,
   timeLogs: initialTimeLogs,
+  branchSettings,
 }: ClockInPanelProps) {
   const { locale, t } = useTranslation();
   const router = useRouter();
@@ -42,6 +46,7 @@ export function ClockInPanel({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [overtimeWarning, setOvertimeWarning] = useState<string | null>(null);
+  const [gpsWarning, setGpsWarning] = useState<string | null>(null);
 
   const todayShift = useMemo(
     () => initialTodayShifts.find((s) => s.employee_id === selectedId),
@@ -77,6 +82,38 @@ export function ClockInPanel({
     setError(null);
     setMessage(null);
     setOvertimeWarning(null);
+    setGpsWarning(null);
+
+    let lat: number | null = null;
+    let lng: number | null = null;
+    try {
+      const pos = await getCurrentPosition();
+      lat = pos.coords.latitude;
+      lng = pos.coords.longitude;
+      if (
+        branchSettings?.workplace_lat != null &&
+        branchSettings?.workplace_lng != null
+      ) {
+        const dist = Math.round(
+          haversineDistanceM(
+            lat,
+            lng,
+            branchSettings.workplace_lat,
+            branchSettings.workplace_lng
+          )
+        );
+        if (dist > branchSettings.gps_radius_m) {
+          setGpsWarning(
+            t("clockin.gpsWarning", {
+              distance: dist,
+              radius: branchSettings.gps_radius_m,
+            })
+          );
+        }
+      }
+    } catch {
+      setGpsWarning(t("clockin.gpsError"));
+    }
 
     const supabase = createBrowserClient();
     const { data, error: insertError } = await supabase
@@ -85,6 +122,8 @@ export function ClockInPanel({
         [COLS.employeeId]: selectedId,
         [COLS.shiftId]: todayShift?.id ?? null,
         [COLS.clockIn]: new Date().toISOString(),
+        [COLS.clockInLat]: lat,
+        [COLS.clockInLng]: lng,
       })
       .select()
       .single();
@@ -107,6 +146,17 @@ export function ClockInPanel({
     setError(null);
     setMessage(null);
     setOvertimeWarning(null);
+    setGpsWarning(null);
+
+    let outLat: number | null = null;
+    let outLng: number | null = null;
+    try {
+      const pos = await getCurrentPosition();
+      outLat = pos.coords.latitude;
+      outLng = pos.coords.longitude;
+    } catch {
+      /* optional on clock out */
+    }
 
     const clockOut = new Date();
     const actualHours = hoursBetweenTimestamps(activeLog.clock_in, clockOut);
@@ -128,6 +178,8 @@ export function ClockInPanel({
         [COLS.clockOut]: clockOut.toISOString(),
         [COLS.actualHours]: actualHours,
         [COLS.overtimeHours]: overtimeHours,
+        [COLS.clockOutLat]: outLat,
+        [COLS.clockOutLng]: outLng,
       })
       .eq("id", activeLog.id)
       .select()
@@ -152,7 +204,7 @@ export function ClockInPanel({
       <div>
         <label
           htmlFor="clock-employee"
-          className="mb-2 block text-sm font-medium text-stone-700"
+          className="mb-2 block text-sm font-medium text-foreground"
         >
           {t("clockin.selectEmployee")}
         </label>
@@ -165,7 +217,7 @@ export function ClockInPanel({
             setError(null);
             setOvertimeWarning(null);
           }}
-          className="w-full rounded-lg border border-stone-300 px-3 py-2 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+          className="w-full rounded-lg border border-default px-3 py-2 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
         >
           {staff.map((s) => (
             <option key={s.id} value={s.id}>
@@ -175,32 +227,32 @@ export function ClockInPanel({
         </select>
       </div>
 
-      <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-stone-900">
+      <div className="rounded-2xl border border-default bg-surface p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold text-foreground">
           {t("clockin.todayShift")}
         </h2>
 
         {todayShift ? (
           <div className="space-y-3">
             <ShiftBadge type={todayShift.shift_type} />
-            <p className="text-sm text-stone-600">
+            <p className="text-sm text-muted">
               {todayShift.start_time.slice(0, 5)} –{" "}
               {todayShift.end_time.slice(0, 5)}
             </p>
-            <p className="text-sm text-stone-500">
+            <p className="text-sm text-muted">
               {t("clockin.scheduledHours", { hours: scheduledHours })}
             </p>
           </div>
         ) : (
-          <p className="text-stone-500">{t("clockin.noShiftToday")}</p>
+          <p className="text-muted">{t("clockin.noShiftToday")}</p>
         )}
 
         {activeLog && (
-          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-            <p className="text-sm font-medium text-emerald-900">
+          <div className="mt-4 rounded-xl border border-accent/30 bg-subtle p-4">
+            <p className="text-sm font-medium text-brand">
               {t("clockin.activeSession")}
             </p>
-            <p className="mt-1 text-sm text-emerald-700">
+            <p className="mt-1 text-sm text-accent">
               {t("clockin.clockedInAt", {
                 time: formatTime(activeLog.clock_in, locale),
               })}
@@ -209,7 +261,7 @@ export function ClockInPanel({
         )}
 
         {completedTodayLog && !activeLog && (
-          <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">
+          <div className="mt-4 rounded-xl border border-default bg-subtle p-4 text-sm text-muted">
             <p>
               {t("clockin.clockedOutAt", {
                 time: formatTime(completedTodayLog.clock_out!, locale),
@@ -237,7 +289,7 @@ export function ClockInPanel({
             type="button"
             onClick={handleClockIn}
             disabled={loading || !!activeLog || !!completedTodayLog}
-            className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-black hover:opacity-90 disabled:opacity-50"
           >
             {t("clockin.clockIn")}
           </button>
@@ -245,14 +297,19 @@ export function ClockInPanel({
             type="button"
             onClick={handleClockOut}
             disabled={loading || !activeLog}
-            className="rounded-xl bg-stone-800 px-6 py-3 text-sm font-semibold text-white hover:bg-stone-900 disabled:opacity-50"
+            className="rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-on-brand hover:bg-brand-hover disabled:opacity-50"
           >
             {t("clockin.clockOut")}
           </button>
         </div>
 
+        {gpsWarning && (
+          <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900" role="alert">
+            {gpsWarning}
+          </p>
+        )}
         {overtimeWarning && (
-          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
+          <p className="mt-4 rounded-xl border border-default bg-subtle p-3 text-sm text-brand" role="alert">
             {overtimeWarning}
           </p>
         )}
@@ -262,7 +319,7 @@ export function ClockInPanel({
           </p>
         )}
         {message && (
-          <p className="mt-4 text-sm text-emerald-700" role="status">
+          <p className="mt-4 text-sm text-accent" role="status">
             {message}
           </p>
         )}
