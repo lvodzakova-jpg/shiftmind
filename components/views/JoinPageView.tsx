@@ -2,14 +2,17 @@
 
 import { AppLogo } from "@/components/AppLogo";
 import { useTranslation } from "@/components/LanguageProvider";
+import { normalizeInviteCode } from "@/lib/invite-code";
 import { createBrowserClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
-export function JoinPageView() {
+function JoinForm() {
   const { t } = useTranslation();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const codeFromUrl = searchParams.get("code") ?? "";
 
   const [inviteCode, setInviteCode] = useState("");
   const [email, setEmail] = useState("");
@@ -17,6 +20,12 @@ export function JoinPageView() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (codeFromUrl) {
+      setInviteCode(normalizeInviteCode(codeFromUrl));
+    }
+  }, [codeFromUrl]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -61,7 +70,7 @@ export function JoinPageView() {
       return;
     }
 
-    router.push("/");
+    router.push("/my-schedule");
     router.refresh();
   }
 
@@ -165,5 +174,13 @@ export function JoinPageView() {
         </p>
       </form>
     </div>
+  );
+}
+
+export function JoinPageView() {
+  return (
+    <Suspense>
+      <JoinForm />
+    </Suspense>
   );
 }

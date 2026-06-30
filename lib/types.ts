@@ -76,6 +76,17 @@ export interface GeneratedSchedule {
   shifts: GeneratedShift[];
 }
 
+export type ScheduleStatus = "draft" | "published";
+
+export interface SchedulePublication {
+  workspace_id: string;
+  week_start: string;
+  status: ScheduleStatus;
+  ai_explanation: string | null;
+  published_at: string | null;
+  updated_at: string;
+}
+
 export interface BranchSettings {
   id: string;
   branch_name: string;

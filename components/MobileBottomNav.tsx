@@ -1,22 +1,19 @@
 "use client";
 
+import { useMember } from "@/components/MemberProvider";
 import { useTranslation } from "@/components/LanguageProvider";
+import { MANAGER_MOBILE_NAV, STAFF_MOBILE_NAV } from "@/lib/roles";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const links = [
-  { href: "/my-schedule", key: "mySchedule", icon: "📅" },
-  { href: "/clockin", key: "clockin", icon: "⏱" },
-  { href: "/schedule", key: "schedule", icon: "📋" },
-  { href: "/swaps", key: "swaps", icon: "🔄" },
-  { href: "/messages", key: "messages", icon: "💬" },
-] as const;
 
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { t } = useTranslation();
+  const { isManager, loaded } = useMember();
 
-  if (pathname === "/") return null;
+  if (!loaded) return null;
+
+  const links = isManager ? MANAGER_MOBILE_NAV : STAFF_MOBILE_NAV;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-default bg-surface/95 backdrop-blur-md md:hidden">
@@ -26,10 +23,10 @@ export function MobileBottomNav() {
           const label =
             link.key === "clockin"
               ? t("nav.clockin")
-              : link.key === "schedule"
-                ? t("nav.schedule")
-                : link.key === "messages"
-                  ? t("nav.messages")
+              : link.key === "mySchedule"
+                ? t("nav.mySchedule")
+                : link.key === "overview"
+                  ? t("nav.overview")
                   : t(`nav.${link.key}`);
           return (
             <Link

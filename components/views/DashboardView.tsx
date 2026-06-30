@@ -2,12 +2,15 @@
 
 import { GenerateScheduleButton } from "@/components/GenerateScheduleButton";
 import { LaborCostPanel } from "@/components/LaborCostPanel";
+import { ManagerInbox } from "@/components/ManagerInbox";
+import { PublishScheduleButton } from "@/components/PublishScheduleButton";
 import { WeekComparisonChart } from "@/components/WeekComparisonChart";
 import { useTranslation } from "@/components/LanguageProvider";
 import { PageHeader } from "@/components/PageHeader";
 import { ShiftBadge } from "@/components/ShiftBadge";
 import { computeKpis, computeWeekComparison } from "@/lib/kpi";
 import { buildAlerts } from "@/lib/alerts";
+import { buildManagerInbox } from "@/lib/manager-inbox";
 import {
   formatBirthdayDate,
   getUpcomingBirthdays,
@@ -21,8 +24,11 @@ import {
 import { isWorkingShift } from "@/lib/shifts";
 import type {
   BranchSettings,
+  LeaveRequest,
   Preference,
+  SchedulePublication,
   Shift,
+  ShiftSwapRequest,
   ShiftType,
   Staff,
   TimeLog,
@@ -40,6 +46,9 @@ interface DashboardViewProps {
   prevShifts: Shift[];
   prevTimeLogs: TimeLog[];
   branchSettings: BranchSettings | null;
+  publication: SchedulePublication | null;
+  swapRequests: ShiftSwapRequest[];
+  leaveRequests: LeaveRequest[];
 }
 
 export function DashboardView({
@@ -51,8 +60,39 @@ export function DashboardView({
   prevShifts,
   prevTimeLogs,
   branchSettings,
+  publication,
+  swapRequests,
+  leaveRequests,
 }: DashboardViewProps) {
   const { locale, t } = useTranslation();
+
+  const inboxItems = useMemo(
+    () =>
+      buildManagerInbox(
+        staff,
+        shifts,
+        preferences,
+        swapRequests,
+        leaveRequests,
+        weekStart,
+        branchSettings?.min_staff_per_shift ?? 2,
+        publication,
+        t,
+      ),
+    [
+      staff,
+      shifts,
+      preferences,
+      swapRequests,
+      leaveRequests,
+      weekStart,
+      branchSettings?.min_staff_per_shift,
+      publication,
+      t,
+    ],
+  );
+
+  const isDraft = !publication || publication.status === "draft";
 
   const alerts = useMemo(
     () =>
@@ -161,6 +201,8 @@ export function DashboardView({
         </Link>
       </div>
 
+      <ManagerInbox items={inboxItems} />
+
       <div className="mb-8 rounded-xl border border-default bg-subtle p-6 sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -168,8 +210,19 @@ export function DashboardView({
               {t("dashboard.aiTitle")}
             </h2>
             <p className="mt-2 max-w-xl text-muted">{t("dashboard.aiDesc")}</p>
+            {publication?.ai_explanation && (
+              <div className="mt-4 rounded-lg border border-default bg-surface p-4 text-sm text-muted whitespace-pre-line">
+                <p className="mb-1 font-medium text-foreground">
+                  {t("publish.aiExplanation")}
+                </p>
+                {publication.ai_explanation}
+              </div>
+            )}
           </div>
-          <GenerateScheduleButton weekStart={weekStart} />
+          <div className="flex flex-col gap-3">
+            <GenerateScheduleButton weekStart={weekStart} />
+            <PublishScheduleButton weekStart={weekStart} isDraft={isDraft} />
+          </div>
         </div>
       </div>
 

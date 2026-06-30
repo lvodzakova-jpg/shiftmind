@@ -18,17 +18,13 @@ export function TeamInviteCard({
   const appUrl =
     typeof window !== "undefined"
       ? window.location.origin
-      : "https://shiftmind-2mcl.vercel.app";
+      : "https://shiftmind.com";
 
-  async function copyCode() {
-    await navigator.clipboard.writeText(inviteCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
+  const joinUrl = `${appUrl}/join?code=${inviteCode}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(joinUrl)}`;
 
-  async function copyLink() {
-    const link = `${appUrl}/join`;
-    await navigator.clipboard.writeText(link);
+  async function copy(text: string) {
+    await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -42,19 +38,43 @@ export function TeamInviteCard({
         {t("auth.inviteTeamDescription", { name: businessName })}
       </p>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <span className="rounded-xl bg-subtle px-4 py-3 font-mono text-2xl font-bold tracking-widest text-foreground">
-          {inviteCode}
-        </span>
-        <button type="button" onClick={copyCode} className="btn-secondary">
-          {copied ? t("auth.copied") : t("auth.copyCode")}
-        </button>
-        <button type="button" onClick={copyLink} className="btn-secondary">
-          {t("auth.copyJoinLink")}
-        </button>
+      <div className="mt-4 flex flex-wrap items-start gap-6">
+        <div>
+          <span className="rounded-xl bg-subtle px-4 py-3 font-mono text-2xl font-bold tracking-widest text-foreground">
+            {inviteCode}
+          </span>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => copy(inviteCode)}
+              className="btn-secondary"
+            >
+              {copied ? t("auth.copied") : t("auth.copyCode")}
+            </button>
+            <button
+              type="button"
+              onClick={() => copy(joinUrl)}
+              className="btn-secondary"
+            >
+              {t("auth.copyJoinLink")}
+            </button>
+          </div>
+        </div>
+        <div className="text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={qrUrl}
+            alt="QR code"
+            width={180}
+            height={180}
+            className="rounded-lg border border-default"
+          />
+          <p className="mt-2 text-xs text-muted">{t("auth.scanQr")}</p>
+        </div>
       </div>
 
-      <p className="mt-4 text-sm text-muted">{t("auth.inviteInstructions")}</p>
+      <p className="mt-4 break-all text-xs text-muted">{joinUrl}</p>
+      <p className="mt-2 text-sm text-muted">{t("auth.inviteInstructions")}</p>
     </div>
   );
 }

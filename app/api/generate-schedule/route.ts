@@ -17,7 +17,9 @@ import { getDateRange } from "@/lib/leaves";
 import type { BranchSettings, LeaveRequest } from "@/lib/types";
 import { formatDateISO, getWeekDates, getWeekEnd, getWeekStart } from "@/lib/week";
 
-function extractJson(text: string): GeneratedSchedule {
+function extractJson(text: string): GeneratedSchedule & {
+  explanation?: string[];
+} {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const raw = fenced ? fenced[1].trim() : text.trim();
   const parsed = JSON.parse(raw) as {
@@ -29,10 +31,11 @@ function extractJson(text: string): GeneratedSchedule {
       shift_date?: string;
       shift_type: ShiftType;
     }>;
+    explanation?: string[];
   };
 
   if (!parsed.week_start || !Array.isArray(parsed.shifts)) {
-    throw new Error("Neplatný formát odpovede AI");
+    throw new Error("Invalid AI response format");
   }
 
   return {
@@ -42,6 +45,7 @@ function extractJson(text: string): GeneratedSchedule {
       date: s.date ?? s.shift_date ?? "",
       shift_type: s.shift_type,
     })),
+    explanation: parsed.explanation,
   };
 }
 
@@ -184,51 +188,42 @@ export async function POST(request: Request) {
 
     const anthropic = new Anthropic({ apiKey });
 
-    const langHint =
-      locale === "sk"
-        ? "Odpovedaj po slovensky v prípadnom texte, JSON kľúče nechaj v angličtine."
-        : locale === "es"
-          ? "Responde en español si hay texto, claves JSON en inglés."
-          : "Use English for any prose; keep JSON keys in English.";
-
-    const prompt = `You are an expert café shift scheduler. Build an optimal weekly schedule.
-${langHint}
+    const prompt = `You are an expert workplace shift scheduler. Build an optimal weekly schedule for a retail/hospitality team.
 
 Week starts: ${weekStart}
 Days: ${weekDates.map((d, i) => `${dayNames[i]} = ${d}`).join(", ")}
 
-Branch opening hours:
+Opening hours:
 ${openingHours.join("\n")}
 
-Shift types:
-- morning (morning shift, align with opening hours)
-- evening (evening shift, align with closing hours)
-- full (full day)
-- off (day off)
-- sick (sick leave only when already in approved_leave_days)
+Shift types: morning, evening, full, off, sick
 
 Rules:
 1. Each day at least ${minStaff} people on working shifts (morning/evening/full).
 2. Respect employee preferences; "unavailable" = no working shift.
-3. Never exceed max_hours_per_week per employee (estimate ~8h morning, ~8h evening, ~12h full).
-4. approved_leave_days = must be "off" or matching leave type — do NOT assign work.
-5. Avoid back-to-back evening then morning for the same person.
-6. Assign managers to morning/full shifts on weekdays when possible.
-7. Use "sick" only for approved sick leave days; otherwise use "off".
-${weeklyBudget > 0 ? `8. Try to stay within weekly labor budget ~€${weeklyBudget}.` : ""}
+3. Never exceed max_hours_per_week per employee (~8h morning, ~8h evening, ~12h full).
+4. approved_leave_days = must be off or matching leave — no work shifts.
+5. Avoid evening-then-morning back-to-back for the same person.
+6. Prefer managers on morning/full shifts on weekdays.
+7. Use "sick" only for approved sick leave days.
+${weeklyBudget > 0 ? `8. Stay near weekly labor budget ~${weeklyBudget}.` : ""}
 
-Employees, preferences, and approved leave:
+Team data:
 ${JSON.stringify(employeeContext, null, 2)}
 
-Odpovedz VÝHRADNE platným JSON (bez markdown), presne v tomto tvare:
+Respond with ONLY valid JSON (no markdown):
 {
   "week_start": "${weekStart}",
   "shifts": [
     { "employee_id": "uuid", "shift_date": "YYYY-MM-DD", "shift_type": "morning|evening|full|off|sick" }
+  ],
+  "explanation": [
+    "Short bullet: key scheduling decision in plain English",
+    "Another bullet if needed"
   ]
 }
 
-Pre každého zamestnanca a každý deň týždňa musí existovať presne jeden záznam v shifts (${employees.length} × 7 = ${employees.length * 7} záznamov).`;
+Exactly one shift per employee per day (${employees.length} × 7 = ${employees.length * 7} rows).`;
 
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
@@ -245,6 +240,8 @@ Pre každého zamestnanca a každý deň týždňa musí existovať presne jeden
     }
 
     const schedule = extractJson(textBlock.text);
+    const explanationText =
+      schedule.explanation?.join("\n") ?? null;
     const employeeIdSet = new Set(employees.map((e) => e.id));
     const validDates = new Set(weekDates);
 
@@ -297,15 +294,28 @@ Pre každého zamestnanca a každý deň týždňa musí existovať presne jeden
 
     if (insertError) {
       return NextResponse.json(
-        { error: `Ukladanie rozvrhu: ${insertError.message}` },
+        { error: `Saving schedule: ${insertError.message}` },
         { status: 500 }
       );
     }
+
+    await supabase.from(TABLES.schedulePublications).upsert(
+      {
+        workspace_id: workspaceId,
+        week_start: weekStart,
+        status: "draft",
+        ai_explanation: explanationText,
+        published_at: null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "workspace_id,week_start" },
+    );
 
     return NextResponse.json({
       success: true,
       week_start: weekStart,
       shifts_saved: rows.length,
+      explanation: explanationText,
     });
   } catch (e) {
     console.error("generate-schedule:", e);

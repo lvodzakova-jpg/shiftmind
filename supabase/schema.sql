@@ -369,4 +369,19 @@ create unique index employees_workspace_email_unique
   on employees (workspace_id, lower(email))
   where workspace_id is not null;
 
+-- Draft / published weekly schedules
+create table if not exists schedule_publications (
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  week_start date not null,
+  status text not null default 'draft' check (status in ('draft', 'published')),
+  ai_explanation text,
+  published_at timestamptz,
+  updated_at timestamptz not null default now(),
+  primary key (workspace_id, week_start)
+);
+
+alter table schedule_publications enable row level security;
+drop policy if exists "schedule_publications_all" on schedule_publications;
+create policy "schedule_publications_all" on schedule_publications for all using (true) with check (true);
+
 -- No demo employees: each visitor starts with an empty workspace (created by the app).

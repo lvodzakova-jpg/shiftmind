@@ -3,9 +3,11 @@
 import { AppLogo } from "@/components/AppLogo";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeControls } from "@/components/ThemeControls";
+import { useMember } from "@/components/MemberProvider";
 import { useTranslation } from "@/components/LanguageProvider";
 import { TABLES } from "@/lib/db";
 import { getCurrentEmployeeId } from "@/lib/current-user";
+import { MANAGER_NAV, STAFF_NAV } from "@/lib/roles";
 import { createBrowserClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -15,30 +17,18 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useTranslation();
+  const { isManager, loaded } = useMember();
   const [unread, setUnread] = useState(0);
 
-  async function handleLogout() {
-    const supabase = createBrowserClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
-  }
-
-  const links = [
-    { href: "/dashboard", label: t("nav.overview") },
-    { href: "/schedule", label: t("nav.schedule") },
-    { href: "/templates", label: t("nav.templates") },
-    { href: "/staff", label: t("nav.staff") },
-    { href: "/leaves", label: t("nav.leaves") },
-    { href: "/swaps", label: t("nav.swaps") },
-    { href: "/compliance", label: t("nav.compliance") },
-    { href: "/documents", label: t("nav.documents") },
-    { href: "/payroll", label: t("nav.payroll") },
-    { href: "/attendance", label: t("nav.attendance") },
-    { href: "/preferences", label: t("nav.preferences") },
-    { href: "/settings", label: t("nav.settings") },
-    { href: "/clockin", label: t("nav.clockin") },
-  ];
+  const links = loaded
+    ? isManager
+      ? [
+          ...MANAGER_NAV,
+          { href: "/messages", key: "messages" as const },
+          { href: "/clockin", key: "clockin" as const },
+        ]
+      : STAFF_NAV
+    : [];
 
   useEffect(() => {
     const employeeId = getCurrentEmployeeId();
@@ -52,6 +42,13 @@ export function Navbar() {
       .then(({ count }) => setUnread(count ?? 0));
   }, [pathname]);
 
+  async function handleLogout() {
+    const supabase = createBrowserClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
+
   return (
     <header
       className="sticky top-0 z-50 border-b border-default backdrop-blur-md"
@@ -59,7 +56,7 @@ export function Navbar() {
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="flex h-16 items-center justify-between gap-3">
-          <Link href="/dashboard" className="shrink-0">
+          <Link href={isManager ? "/dashboard" : "/my-schedule"} className="shrink-0">
             <AppLogo size="sm" showWordmark tagline={t("nav.tagline")} />
           </Link>
           <div className="flex items-center gap-1.5">
@@ -91,6 +88,12 @@ export function Navbar() {
         <nav className="-mx-1 flex gap-0.5 overflow-x-auto pb-2 scrollbar-none">
           {links.map((link) => {
             const active = pathname.startsWith(link.href);
+            const label =
+              link.key === "clockin"
+                ? t("nav.clockin")
+                : link.key === "mySchedule"
+                  ? t("nav.mySchedule")
+                  : t(`nav.${link.key}`);
             return (
               <Link
                 key={link.href}
@@ -101,7 +104,7 @@ export function Navbar() {
                     : "text-foreground hover:bg-subtle"
                 }`}
               >
-                {link.label}
+                {label}
               </Link>
             );
           })}

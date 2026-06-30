@@ -15,6 +15,7 @@ export const TABLES = {
   pushSubscriptions: "push_subscriptions",
   notificationPreferences: "notification_preferences",
   shiftSwapRequests: "shift_swap_requests",
+  schedulePublications: "schedule_publications",
 } as const;
 
 export const COLS = {

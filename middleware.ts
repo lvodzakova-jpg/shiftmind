@@ -1,13 +1,40 @@
 import { updateSession } from "@/lib/supabase/middleware";
+import { isManagerRole } from "@/lib/roles";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/join"]);
+const PUBLIC_PATHS = new Set([
+  "/",
+  "/login",
+  "/signup",
+  "/join",
+  "/forgot-password",
+  "/reset-password",
+]);
+
+const MANAGER_ONLY_PREFIXES = [
+  "/dashboard",
+  "/staff",
+  "/settings",
+  "/payroll",
+  "/compliance",
+  "/documents",
+  "/attendance",
+  "/templates",
+  "/onboarding",
+  "/leaves",
+];
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.has(pathname)) return true;
   if (pathname.startsWith("/api/auth")) return true;
   return false;
+}
+
+function isManagerOnlyPath(pathname: string): boolean {
+  return MANAGER_ONLY_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
 }
 
 export async function middleware(request: NextRequest) {
@@ -49,31 +76,52 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(homeUrl);
   }
 
-  if (user && pathname !== "/join" && !isPublicPath(pathname)) {
+  if (user) {
     const { data: member } = await supabase
       .from("workspace_members")
-      .select("id")
+      .select("workspace_id, role")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (!member) {
+    if (!member && pathname !== "/join" && !isPublicPath(pathname)) {
       const joinUrl = request.nextUrl.clone();
       joinUrl.pathname = "/join";
       return NextResponse.redirect(joinUrl);
     }
-  }
 
-  if (user && pathname === "/") {
-    const { data: member } = await supabase
-      .from("workspace_members")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    if (member) {
+      const manager = isManagerRole(member.role);
 
-    if (!member) {
-      const joinUrl = request.nextUrl.clone();
-      joinUrl.pathname = "/join";
-      return NextResponse.redirect(joinUrl);
+      if (!manager && isManagerOnlyPath(pathname)) {
+        const staffUrl = request.nextUrl.clone();
+        staffUrl.pathname = "/my-schedule";
+        return NextResponse.redirect(staffUrl);
+      }
+
+      if (
+        manager &&
+        pathname !== "/onboarding" &&
+        pathname !== "/staff" &&
+        !pathname.startsWith("/api") &&
+        !isPublicPath(pathname)
+      ) {
+        const { count } = await supabase
+          .from("employees")
+          .select("id", { count: "exact", head: true })
+          .eq("workspace_id", member.workspace_id);
+
+        if ((count ?? 0) === 0) {
+          const onboardingUrl = request.nextUrl.clone();
+          onboardingUrl.pathname = "/onboarding";
+          return NextResponse.redirect(onboardingUrl);
+        }
+      }
+
+      if (!manager && pathname === "/") {
+        const staffUrl = request.nextUrl.clone();
+        staffUrl.pathname = "/my-schedule";
+        return NextResponse.redirect(staffUrl);
+      }
     }
   }
 

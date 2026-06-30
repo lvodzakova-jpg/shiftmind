@@ -71,9 +71,17 @@ export function LoginPageView() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">
-              {t("auth.passwordLabel")}
-            </label>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="text-sm font-medium text-foreground">
+                {t("auth.passwordLabel")}
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-xs font-medium text-brand hover:underline"
+              >
+                {t("auth.forgotPasswordLink")}
+              </Link>
+            </div>
             <input
               type="password"
               required

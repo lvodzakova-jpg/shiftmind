@@ -12,8 +12,8 @@ export const LOCALE_LABELS: Record<Locale, string> = {
 export const translations = {
   sk: {
     meta: {
-      title: "ShiftMind — AI rozvrh zmien",
-      description: "Správa týždenného rozvrhu zmien pre kaviarne",
+      title: "ShiftMind — AI shift scheduling",
+      description: "Weekly shift scheduling for teams",
     },
     nav: {
       overview: "Prehľad",
@@ -74,6 +74,16 @@ export const translations = {
       copied: "Skopírované!",
       inviteInstructions:
         "Kolega otvorí appku → Pripojiť sa k tímu → zadá kód a vytvorí si účet.",
+      forgotTitle: "Zabudnuté heslo",
+      forgotSubtitle: "Pošleme vám odkaz na obnovenie hesla.",
+      forgotSent: "Skontrolujte e-mail — odkaz na obnovenie hesla bol odoslaný.",
+      forgotButton: "Poslať odkaz",
+      sending: "Odosielam…",
+      forgotPasswordLink: "Zabudli ste heslo?",
+      resetTitle: "Nové heslo",
+      resetDone: "Heslo bolo zmenené. Presmerovávam na prihlásenie…",
+      resetButton: "Uložiť heslo",
+      scanQr: "Naskenujte QR kód mobilom pre rýchle pripojenie",
     },
     aria: {
       prevWeek: "Predchádzajúci týždeň",
@@ -257,7 +267,7 @@ export const translations = {
   en: {
     meta: {
       title: "ShiftMind — AI shift scheduling",
-      description: "Weekly shift schedule management for cafés",
+      description: "Weekly shift scheduling for teams",
     },
     nav: {
       overview: "Overview",
@@ -281,9 +291,9 @@ export const translations = {
     auth: {
       tagline: "AI shift scheduling",
       loginTitle: "Sign in",
-      loginSubtitle: "Sign in to your workplace",
-      signupTitle: "Create workplace",
-      signupSubtitle: "Register and set up your café team",
+      loginSubtitle: "Sign in to your workspace",
+      signupTitle: "Create workspace",
+      signupSubtitle: "Register and set up your team",
       joinTitle: "Join a team",
       joinSubtitle: "Enter the invite code from your manager",
       emailLabel: "Email",
@@ -291,7 +301,7 @@ export const translations = {
       passwordLabel: "Password",
       passwordHint: "At least 6 characters",
       businessNameLabel: "Business name",
-      businessNamePlaceholder: "e.g. Downtown Café",
+      businessNamePlaceholder: "e.g. Main Street Shop",
       inviteCodeLabel: "Invite code",
       loginButton: "Sign in",
       signupButton: "Create account",
@@ -318,6 +328,16 @@ export const translations = {
       copied: "Copied!",
       inviteInstructions:
         "Colleague opens the app → Join team → enters code and creates an account.",
+      forgotTitle: "Forgot password",
+      forgotSubtitle: "We'll email you a link to reset your password.",
+      forgotSent: "Check your email — a reset link has been sent.",
+      forgotButton: "Send reset link",
+      sending: "Sending…",
+      forgotPasswordLink: "Forgot password?",
+      resetTitle: "New password",
+      resetDone: "Password updated. Redirecting to sign in…",
+      resetButton: "Save password",
+      scanQr: "Scan the QR code on your phone to join quickly",
     },
     aria: {
       prevWeek: "Previous week",
@@ -423,7 +443,7 @@ export const translations = {
       title: "Branch settings",
       description: "Branch name, operating hours and minimum staff per shift.",
       branchName: "Branch name",
-      branchNamePlaceholder: "e.g. Downtown Café",
+      branchNamePlaceholder: "e.g. Main location",
       minStaff: "Min. staff per shift",
       hoursTitle: "Operating hours",
       open: "Open",
@@ -457,7 +477,7 @@ export const translations = {
       scheduledExcess: "+{hours}h over limit",
     },
     staff: {
-      title: "Café team",
+      title: "Team",
       description: "Manage employees and their positions.",
       addTitle: "Add employee",
       nameLabel: "Full name",
@@ -500,7 +520,7 @@ export const translations = {
   es: {
     meta: {
       title: "ShiftMind — Horarios con IA",
-      description: "Gestión del horario semanal de turnos para cafeterías",
+      description: "Gestión de turnos semanales para equipos",
     },
     nav: {
       overview: "Resumen",
@@ -561,6 +581,16 @@ export const translations = {
       copied: "¡Copiado!",
       inviteInstructions:
         "El colega abre la app → Unirse al equipo → introduce el código y crea una cuenta.",
+      forgotTitle: "Contraseña olvidada",
+      forgotSubtitle: "Le enviaremos un enlace para restablecer la contraseña.",
+      forgotSent: "Revise su correo — se envió el enlace.",
+      forgotButton: "Enviar enlace",
+      sending: "Enviando…",
+      forgotPasswordLink: "¿Olvidó su contraseña?",
+      resetTitle: "Nueva contraseña",
+      resetDone: "Contraseña actualizada. Redirigiendo al inicio de sesión…",
+      resetButton: "Guardar contraseña",
+      scanQr: "Escanee el código QR con su móvil para unirse rápidamente",
     },
     aria: {
       prevWeek: "Semana anterior",

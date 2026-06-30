@@ -1,8 +1,8 @@
 {
   "name": "ShiftMind",
   "short_name": "ShiftMind",
-  "description": "AI shift scheduling for cafés",
-  "start_url": "/my-schedule",
+  "description": "AI shift scheduling for teams",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#F5F5F5",
   "theme_color": "#0F3D2E",

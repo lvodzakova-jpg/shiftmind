@@ -13,7 +13,7 @@ export const BRANCH_DAYS = [
 export type BranchDay = (typeof BRANCH_DAYS)[number];
 
 export const DEFAULT_BRANCH_SETTINGS: Omit<BranchSettings, "id" | "updated_at"> = {
-  branch_name: "Kaviareň Centrum",
+  branch_name: "Main location",
   min_staff_per_shift: 2,
   meal_allowance: 0,
   weekly_budget: 0,

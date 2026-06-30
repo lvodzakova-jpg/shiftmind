@@ -4,10 +4,14 @@ import { MyScheduleView } from "@/components/views/MyScheduleView";
 import { COLS, TABLES } from "@/lib/db";
 import { createServerClient } from "@/lib/supabase/server";
 import type { Shift, Staff } from "@/lib/types";
+import { getSchedulePublication } from "@/lib/schedule-publication";
 import {
   ensureWorkspace,
   getWorkspaceEmployeeIds,
+  getWorkspaceMembership,
+  getAuthenticatedUser,
 } from "@/lib/workspace-server";
+import { isManagerRole } from "@/lib/roles";
 import { formatDateISO, getWeekEnd, getWeekStart } from "@/lib/week";
 
 interface PageProps {
@@ -24,6 +28,12 @@ export default async function MySchedulePage({ searchParams }: PageProps) {
   const workspaceId = await ensureWorkspace();
   const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
 
+  const { user } = await getAuthenticatedUser();
+  const member = user ? await getWorkspaceMembership(user.id) : null;
+  const isManager = isManagerRole(member?.role);
+  const publication = await getSchedulePublication(workspaceId, weekStart);
+  const published = isManager || publication?.status === "published";
+
   const supabase = await createServerClient();
   const [{ data: staff }, { data: shifts }] = await Promise.all([
     supabase
@@ -31,7 +41,7 @@ export default async function MySchedulePage({ searchParams }: PageProps) {
       .select("*")
       .eq(COLS.workspaceId, workspaceId)
       .order("name"),
-    employeeIds.length > 0
+    published && employeeIds.length > 0
       ? supabase
           .from(TABLES.shifts)
           .select("*")
@@ -46,6 +56,7 @@ export default async function MySchedulePage({ searchParams }: PageProps) {
       weekStart={weekStart}
       staff={(staff ?? []) as Staff[]}
       shifts={(shifts ?? []) as Shift[]}
+      notPublished={!published}
     />
   );
 }

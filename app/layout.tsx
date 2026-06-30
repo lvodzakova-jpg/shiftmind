@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "ShiftMind — AI shift scheduling",
-  description: "Weekly shift schedule management for cafés",
+  description: "Weekly shift scheduling for teams",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

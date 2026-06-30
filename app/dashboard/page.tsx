@@ -2,7 +2,16 @@ export const dynamic = 'force-dynamic';
 import { DashboardView } from "@/components/views/DashboardView";
 import { COLS, TABLES } from "@/lib/db";
 import { createServerClient } from "@/lib/supabase/server";
-import type { BranchSettings, Preference, Shift, TimeLog } from "@/lib/types";
+import type {
+  BranchSettings,
+  LeaveRequest,
+  Preference,
+  SchedulePublication,
+  Shift,
+  ShiftSwapRequest,
+  TimeLog,
+} from "@/lib/types";
+import { getSchedulePublication } from "@/lib/schedule-publication";
 import {
   ensureWorkspace,
   getWorkspaceEmployeeIds,
@@ -26,6 +35,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const workspaceId = await ensureWorkspace();
   const employeeIds = await getWorkspaceEmployeeIds(workspaceId);
   const supabase = await createServerClient();
+  const publication = await getSchedulePublication(workspaceId, weekStart);
 
   const shiftsForRange = (start: string, end: string) =>
     employeeIds.length > 0
@@ -55,6 +65,8 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     { data: prevShifts },
     { data: prevTimeLogs },
     { data: branchSettings },
+    { data: swapRequests },
+    { data: leaveRequests },
   ] = await Promise.all([
     supabase
       .from(TABLES.employees)
@@ -76,6 +88,19 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       .select("*")
       .eq(COLS.workspaceId, workspaceId)
       .maybeSingle(),
+    employeeIds.length > 0
+      ? supabase
+          .from(TABLES.shiftSwapRequests)
+          .select("*")
+          .in("requester_id", employeeIds)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as ShiftSwapRequest[] }),
+    employeeIds.length > 0
+      ? supabase
+          .from(TABLES.leaveRequests)
+          .select("*")
+          .in(COLS.employeeId, employeeIds)
+      : Promise.resolve({ data: [] as LeaveRequest[] }),
   ]);
 
   return (
@@ -88,6 +113,9 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       prevShifts={prevShifts ?? []}
       prevTimeLogs={prevTimeLogs ?? []}
       branchSettings={(branchSettings ?? null) as BranchSettings | null}
+      publication={(publication ?? null) as SchedulePublication | null}
+      swapRequests={(swapRequests ?? []) as ShiftSwapRequest[]}
+      leaveRequests={(leaveRequests ?? []) as LeaveRequest[]}
     />
   );
 }

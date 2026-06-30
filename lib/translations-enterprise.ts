@@ -5,9 +5,11 @@ import {
   documentGuideSk,
 } from "./translations-documents-guide";
 import { featuresEn, featuresEs, featuresSk } from "./translations-features";
+import { managerEn, managerEs, managerSk } from "./translations-manager";
 
 const sk = {
   ...featuresSk,
+  ...managerSk,
   theme: {
     appearance: "Vzhľad",
     palette: "Farba",
@@ -233,6 +235,7 @@ const sk = {
 
 const en: typeof sk = {
   ...featuresEn,
+  ...managerEn,
   theme: {
     appearance: "Appearance",
     palette: "Color",
@@ -458,6 +461,7 @@ const en: typeof sk = {
 
 const es: typeof sk = {
   ...featuresEs,
+  ...managerEs,
   theme: {
     appearance: "Apariencia",
     palette: "Color",

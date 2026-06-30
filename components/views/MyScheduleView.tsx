@@ -13,9 +13,15 @@ interface MyScheduleViewProps {
   weekStart: string;
   staff: Staff[];
   shifts: Shift[];
+  notPublished?: boolean;
 }
 
-export function MyScheduleView({ weekStart, staff, shifts }: MyScheduleViewProps) {
+export function MyScheduleView({
+  weekStart,
+  staff,
+  shifts,
+  notPublished = false,
+}: MyScheduleViewProps) {
   const { locale, t } = useTranslation();
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const weekDates = getWeekDates(weekStart);
@@ -50,6 +56,12 @@ export function MyScheduleView({ weekStart, staff, shifts }: MyScheduleViewProps
       <p className="mb-6 rounded-xl border border-dashed border-default bg-subtle px-4 py-3 text-sm text-muted">
         {t("mobile.installHint")}
       </p>
+
+      {notPublished && (
+        <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {t("publish.notPublishedYet")}
+        </p>
+      )}
 
       {staff.length > 1 && (
         <select
